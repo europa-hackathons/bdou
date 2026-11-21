@@ -12,6 +12,7 @@ export function createUI(app) {
   /* ---- static options ---- */
   CONFIG.durations.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} s`; byId('durSel').appendChild(o); });
   ['easy', 'normal', 'hard'].forEach(k => { const o = document.createElement('option'); o.value = k; byId('diffSel').appendChild(o); });
+  ['kawaii', 'anime'].forEach(k => { const o = document.createElement('option'); o.value = k; byId('animSel').appendChild(o); });
   ['pose', 'hand'].forEach(k => { const o = document.createElement('option'); o.value = k; byId('trkSel').appendChild(o); });
   const kbd = byId('kbd');
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(ch => { const b = document.createElement('button'); b.textContent = ch; b.onclick = () => addLetter(ch); kbd.appendChild(b); });
@@ -22,6 +23,7 @@ export function createUI(app) {
   const S = app.settings;
   byId('durSel').value = S.dur; byId('diffSel').value = S.diff; byId('volRange').value = S.vol;
   byId('musicChk').checked = S.music !== false; byId('musicChk').onchange = e => app.setSetting('music', e.target.checked);
+  byId('animSel').value = S.anim || 'kawaii'; byId('animSel').onchange = e => app.setSetting('anim', e.target.value);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);
@@ -86,6 +88,7 @@ export function createUI(app) {
     document.querySelectorAll('[data-lang]').forEach(e => e.classList.toggle('on', e.dataset.lang === app.settings.lang));
     [...byId('diffSel').options].forEach(o => { o.textContent = t(o.value); });
     [...byId('trkSel').options].forEach(o => { o.textContent = t('trk_' + o.value); });
+    [...byId('animSel').options].forEach(o => { o.textContent = t('anim_' + o.value); });
     byId('kDel').textContent = t('del'); byId('kOk').textContent = t('ok');
     byId('goTitle').textContent = t('gameover');
     if (ui.results) renderScores();

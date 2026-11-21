@@ -145,7 +145,7 @@ async function startGame(mode) {
   const token = ++run.flow;
   run.pendingMode = mode; run.game = null;
   // the intro plays while the camera and body tracking load in the background
-  run.intro = createIntro(mode === 2 ? '2p' : '1p'); run.screen = 'intro';
+  run.intro = createIntro(mode === 2 ? '2p' : '1p', Math.random, S.anim); run.screen = 'intro';
   let trackingDone = !(S.cam && !cam.failed);
   const tracking = trackingDone ? Promise.resolve() : ensureTracking(true).then(() => { trackingDone = true; });
   await new Promise(res => { run.introEnd = res; });
