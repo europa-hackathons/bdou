@@ -2,7 +2,7 @@
 // The kawaii style stays in render.js; this module is only used when Settings → Animation style = Anime.
 import { W, H } from './config.js';
 import { SPRITES_BARE, FACE_POS, ANIME_LOOK } from './sprites.js';
-import { FONT, PLAYER_COLORS, easeInOut, easeBack, span, hash01, comic } from './draw.js';
+import { FONT, PLAYER_COLORS, easeInOut, easeBack, span, hash01, comic, chefHat, bandana, chopsticks, starRing } from './draw.js';
 
 const INK = '#1a0f2e';
 
@@ -13,54 +13,52 @@ function shadeHex(hex, f) { // f < 0 darker, f > 0 lighter
 }
 function makeCanvas(w, h = w) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return [cv, cv.getContext('2d')]; }
 
-// One detailed anime eye centred on (x, y). open: 0 = shut, 1 = wide open.
+// A cute, sparkly anime eye (shōjo style) centred on (x, y). open: 0 = shut, 1 = wide open.
+function sparkle4(c, x, y, r) {
+  c.beginPath(); c.moveTo(x, y - r); c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r);
+  c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r); c.fill();
+}
 export function animeEye(c, x, y, w, h, iris, open = 1) {
   c.save(); c.translate(x, y); c.scale(1, Math.max(.06, open));
   c.beginPath(); c.ellipse(0, 0, w * .5, h * .5, 0, 0, 7); c.fillStyle = '#fff'; c.fill();
   c.save(); c.clip();
-  const ig = c.createLinearGradient(0, -h * .45, 0, h * .5);
-  ig.addColorStop(0, shadeHex(iris, -.55)); ig.addColorStop(.55, iris); ig.addColorStop(1, shadeHex(iris, .45));
-  c.fillStyle = ig; c.beginPath(); c.ellipse(0, h * .06, w * .4, h * .45, 0, 0, 7); c.fill();
-  c.strokeStyle = shadeHex(iris, -.6); c.lineWidth = w * .04; c.stroke();
-  c.fillStyle = INK; c.beginPath(); c.ellipse(0, h * .1, w * .17, h * .22, 0, 0, 7); c.fill();
-  c.fillStyle = 'rgba(26,15,46,.35)'; c.fillRect(-w, -h * .5, w * 2, h * .2);          // shadow under the upper lid
+  const ig = c.createLinearGradient(0, -h * .5, 0, h * .5);                     // big, bright iris
+  ig.addColorStop(0, shadeHex(iris, -.3)); ig.addColorStop(.5, iris); ig.addColorStop(1, shadeHex(iris, .6));
+  c.fillStyle = ig; c.beginPath(); c.ellipse(0, h * .05, w * .46, h * .48, 0, 0, 7); c.fill();
+  c.fillStyle = shadeHex(iris, -.55); c.beginPath(); c.ellipse(0, h * .07, w * .19, h * .23, 0, 0, 7); c.fill();
+  c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.ellipse(0, h * .33, w * .3, h * .11, 0, 0, 7); c.fill();
   c.restore();
-  // lashes: thick upper line with a flick, thin lower line
+  // soft lash line with two little flicks
   c.strokeStyle = INK; c.lineCap = 'round';
-  c.lineWidth = w * .15; c.beginPath(); c.ellipse(0, 0, w * .53, h * .53, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
-  c.lineWidth = w * .1; c.beginPath(); c.moveTo(w * .48, -h * .2); c.lineTo(w * .68, -h * .36); c.stroke();
-  c.lineWidth = w * .05; c.beginPath(); c.ellipse(0, 0, w * .5, h * .5, 0, Math.PI * .2, Math.PI * .8); c.stroke();
-  // highlights
+  c.lineWidth = w * .09; c.beginPath(); c.ellipse(0, 0, w * .52, h * .52, 0, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+  c.lineWidth = w * .06;
+  c.beginPath(); c.moveTo(w * .42, -h * .3); c.lineTo(w * .58, -h * .42); c.stroke();
+  c.beginPath(); c.moveTo(w * .5, -h * .14); c.lineTo(w * .66, -h * .2); c.stroke();
+  // sparkly highlights: big oval, small dot and a star
   c.fillStyle = '#fff';
-  c.beginPath(); c.ellipse(-w * .14, -h * .14, w * .13, h * .12, -.4, 0, 7); c.fill();
-  c.beginPath(); c.arc(w * .13, h * .2, w * .06, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(-w * .15, -h * .16, w * .17, h * .15, -.3, 0, 7); c.fill();
+  c.beginPath(); c.arc(w * .17, h * .17, w * .075, 0, 7); c.fill();
+  sparkle4(c, w * .14, -h * .2, w * .12);
   c.restore();
 }
 
-function animeFace(c, cx, cy, u, iris, mood) {
-  const ex = 11.5 * u, ew = 10 * u, eh = 13 * u;
-  animeEye(c, cx - ex, cy - u, ew, eh, iris); animeEye(c, cx + ex, cy - u, ew, eh, iris);
-  c.strokeStyle = INK; c.lineCap = 'round';
-  if (mood === 'fierce') { // determined brows, angled towards the middle
-    c.lineWidth = 2.8 * u;
-    c.beginPath(); c.moveTo(cx - 19 * u, cy - 13 * u); c.lineTo(cx - 6 * u, cy - 9 * u); c.stroke();
-    c.beginPath(); c.moveTo(cx + 19 * u, cy - 13 * u); c.lineTo(cx + 6 * u, cy - 9 * u); c.stroke();
-    c.lineWidth = 2 * u; c.beginPath(); c.moveTo(cx - 5 * u, cy + 9 * u); c.quadraticCurveTo(cx, cy + 6 * u, cx + 5 * u, cy + 9 * u); c.stroke();
-  } else {
-    c.lineWidth = 2 * u; c.beginPath(); c.moveTo(cx - 4 * u, cy + 7 * u); c.quadraticCurveTo(cx, cy + 11 * u, cx + 4 * u, cy + 7 * u); c.stroke();
-  }
-  // anime blush: short diagonal hatch lines
-  c.strokeStyle = 'rgba(255,80,130,.8)'; c.lineWidth = 1.3 * u;
-  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
-    const bx = cx + sx * (19 * u) + (i - 1) * 2.6 * u, by = cy + 6 * u;
-    c.beginPath(); c.moveTo(bx - 1.2 * u, by + 1.6 * u); c.lineTo(bx + 1.2 * u, by - 1.6 * u); c.stroke();
-  }
+// Happy anime face: sparkly eyes, soft raised brows, open smile, pink blush.
+function animeFace(c, cx, cy, u, iris) {
+  const ex = 11.5 * u;
+  animeEye(c, cx - ex, cy - u, 11 * u, 13.5 * u, iris); animeEye(c, cx + ex, cy - u, 11 * u, 13.5 * u, iris);
+  c.strokeStyle = INK; c.lineCap = 'round'; c.lineWidth = 1.5 * u;
+  for (const sx of [-1, 1]) { c.beginPath(); c.arc(cx + sx * ex, cy - 6 * u, 5 * u, Math.PI * 1.25, Math.PI * 1.75); c.stroke(); }
+  c.fillStyle = '#8a2a4a';
+  c.beginPath(); c.moveTo(cx - 5 * u, cy + 6.5 * u); c.quadraticCurveTo(cx, cy + 14 * u, cx + 5 * u, cy + 6.5 * u); c.closePath(); c.fill();
+  c.fillStyle = '#ff8fb0'; c.beginPath(); c.ellipse(cx, cy + 10.3 * u, 2.4 * u, 1.4 * u, 0, 0, 7); c.fill();
+  c.fillStyle = 'rgba(255,120,160,.55)';
+  for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(cx + sx * 19 * u, cy + 6 * u, 4.6 * u, 2.8 * u, 0, 0, 7); c.fill(); }
 }
 
-// Cel-shaded character (ink outline, hard shadow, rim light, anime face), cached per size and mood.
+// Cel-shaded character (ink outline, hard shadow, rim light, anime face), cached per size.
 const CHAR_CACHE = new Map();
-export function animeCharacter(key, size, mood = 'fierce') {
-  const id = `${key}|${Math.round(size / 8) * 8}|${mood}`;
+export function animeCharacter(key, size) {
+  const id = `${key}|${Math.round(size / 8) * 8}`;
   if (CHAR_CACHE.has(id)) return CHAR_CACHE.get(id);
   const img = SPRITES_BARE[key];
   if (!img || !img.complete) return null;
@@ -80,16 +78,18 @@ export function animeCharacter(key, size, mood = 'fierce') {
   for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; o.drawImage(sil, Math.cos(a) * ow, Math.sin(a) * ow); }
   o.drawImage(body, 0, 0);
   const [fx, fy] = FACE_POS[key], u = size / 120;
-  animeFace(o, pad + fx * u, pad + fy * u, u, ANIME_LOOK[key].iris, mood);
-  const res = { canvas: out, silhouette: sil, size: S };
+  animeFace(o, pad + fx * u, pad + fy * u, u, ANIME_LOOK[key].iris);
+  const [glow, gl] = makeCanvas(S);                                 // glowing white silhouette (transformation)
+  gl.drawImage(img, pad, pad, size, size); gl.globalCompositeOperation = 'source-in'; gl.fillStyle = '#fff'; gl.fillRect(0, 0, S, S);
+  const res = { canvas: out, silhouette: sil, glow, size: S };
   CHAR_CACHE.set(id, res);
   return res;
 }
-function drawChar(c, key, x, y, size, { flip = false, mood = 'fierce', silhouette = false, alpha = 1 } = {}) {
-  const ch = animeCharacter(key, size, mood);
+function drawChar(c, key, x, y, size, { flip = false, silhouette = false, glow = false, alpha = 1, scaleX = 1 } = {}) {
+  const ch = animeCharacter(key, size);
   if (!ch) return;
-  c.save(); c.globalAlpha = alpha; c.translate(x, y); if (flip) c.scale(-1, 1);
-  c.drawImage(silhouette ? ch.silhouette : ch.canvas, -ch.size / 2, -ch.size / 2); c.restore();
+  c.save(); c.globalAlpha = alpha; c.translate(x, y); c.scale((flip ? -1 : 1) * scaleX, 1);
+  c.drawImage(glow ? ch.glow : silhouette ? ch.silhouette : ch.canvas, -ch.size / 2, -ch.size / 2); c.restore();
 }
 
 function speedLines(c, cx, cy, n, r0, col, width, seed, alpha = 1) {
@@ -158,8 +158,8 @@ export function introVersusAnime(c, it, tr) {
       const open = easeBack(span(t, .3 + i * .15, .45 + i * .15));
       const ex = i ? W * .62 : W * .38;
       animeEye(c, ex, y0 + H / 4 + 12, 230, 300, ANIME_LOOK[ch.key].iris, open);
-      c.strokeStyle = INK; c.lineWidth = 26; c.lineCap = 'round';                  // a fierce brow
-      c.beginPath(); c.moveTo(ex - 150 * (i ? -1 : 1), y0 + 32); c.lineTo(ex + 120 * (i ? -1 : 1), y0 + 70); c.stroke();
+      c.fillStyle = '#fff';                                                       // twinkles around the eye
+      for (let k = 0; k < 5; k++) { const ang = k * 1.26 + i, tw = .6 + .4 * Math.sin(t * 12 + k * 2); sparkle4(c, ex + Math.cos(ang) * 190, y0 + H / 4 + Math.sin(ang) * 120, 16 * tw); }
       c.restore();
     });
     // horizontal lightning seam between the two close-ups
@@ -247,5 +247,67 @@ export function introVersusAnime(c, it, tr) {
   const gr = span(t, 4.0, 4.2) * (1 - span(t, 4.55, 4.65));
   if (gr > 0) comic(c, tr('introGet'), W / 2, H * .66, 44, '#fff', 0, gr);
   if (t >= 4.6) { const k = span(t, 4.6, 4.8); comic(c, tr('introSort'), W / 2, H * .66, 90 * (2 - easeBack(k)), '#7dff9b', -.03, Math.min(1, k * 3)); }
+  if (t > 5.45) { c.fillStyle = `rgba(255,255,255,${span(t, 5.45, 5.8)})`; c.fillRect(0, 0, W, H); }
+}
+
+// The anime-style 1P transformation: a sparkling eye opens, a glowing silhouette spins in a column of light,
+// the chef outfit lands piece by piece, then the character bursts into colour for a hero pose.
+export function introTransformAnime(c, it, tr) {
+  const t = it.t, ch = it.chars[0], look = ANIME_LOOK[ch.key], cx = W / 2;
+  const bg = c.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#ffd6f0'); bg.addColorStop(.5, '#e2c6ff'); bg.addColorStop(1, '#a9d8ff');
+  c.fillStyle = bg; c.fillRect(0, 0, W, H);
+  // floating bubbles
+  c.save(); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 3;
+  for (let i = 0; i < 26; i++) { const r = 10 + hash01(i) * 26, x = hash01(i + 40) * W, y = ((hash01(i + 80) * (H + 100) - t * (40 + hash01(i + 9) * 60)) % (H + 100) + H + 100) % (H + 100) - 50; c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); }
+  c.restore();
+
+  if (t < 1.0) {
+    // CUT 1: a big sparkling eye opens
+    const halo = c.createRadialGradient(cx, H / 2, 20, cx, H / 2, 420); halo.addColorStop(0, 'rgba(255,255,255,.9)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = halo; c.fillRect(0, 0, W, H);
+    animeEye(c, cx, H / 2 + 10, 300, 380, look.iris, easeBack(span(t, .25, .55)));
+    c.fillStyle = '#fff';
+    for (let k = 0; k < 6; k++) { const a = k * 1.05 + t, tw = .6 + .4 * Math.sin(t * 12 + k * 2); sparkle4(c, cx + Math.cos(a) * 250, H / 2 + Math.sin(a) * 210, 18 * tw); }
+    comic(c, tr('introSpark'), cx, H * .1, 40, '#fff', 0, span(t, .4, .6));
+    if (t < .25) { c.fillStyle = `rgba(255,255,255,${1 - t / .25})`; c.fillRect(0, 0, W, H); }
+    return;
+  }
+  const pose = span(t, 3.6, 3.8);
+  if (pose > 0) {
+    // CUT 4 background: pastel speed lines, a giant faint 変身 ("transform!"), sakura
+    c.save(); c.strokeStyle = `rgba(255,255,255,${.8 * pose})`;
+    for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + hash01(i + Math.floor(t * 12)) * .05, r0 = 260 + hash01(i * 3) * 100; c.lineWidth = 2 + hash01(i * 7) * 5; c.beginPath(); c.moveTo(cx + Math.cos(a) * r0, H / 2 + Math.sin(a) * r0); c.lineTo(cx + Math.cos(a) * 1500, H / 2 + Math.sin(a) * 1500); c.stroke(); }
+    c.restore();
+    c.save(); c.globalAlpha = .3 * pose; c.font = `900 300px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff'; c.fillText('変身', cx, H * .45); c.restore();
+  }
+  // column of light
+  const colA = (1 - pose) * (.45 + .15 * Math.sin(t * 9));
+  const lc = c.createLinearGradient(cx - 230, 0, cx + 230, 0);
+  lc.addColorStop(0, 'rgba(255,255,255,0)'); lc.addColorStop(.5, `rgba(255,255,255,${colA})`); lc.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = lc; c.fillRect(cx - 230, 0, 460, H);
+  const size = 300 * (1 + .18 * easeInOut(pose)), cy = H * .5 + 30 * easeInOut(pose) + Math.sin(t * 3) * 8;
+  // ribbons spiralling around the column while spinning
+  const rib = span(t, 1.0, 1.2) * (1 - span(t, 3.2, 3.6));
+  if (rib > 0) for (const [k, col] of [[0, '#ff5fb0'], [1, '#ffe14d'], [2, '#7ad8ff']]) {
+    c.save(); c.globalAlpha = rib; c.strokeStyle = col; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath();
+    for (let i = 0; i <= 60; i++) { const y = H + 40 - i * 14 - ((t * 260) % 14), a = i * .32 + t * 6 + k * 2.1; c.lineTo(cx + Math.sin(a) * 200, y); }
+    c.stroke(); c.restore();
+  }
+  // the character: glowing white silhouette that spins, then bursts into colour
+  const spin = easeInOut(span(t, 1.0, 2.6)) * Math.PI * 6, sx = Math.max(.08, Math.abs(Math.cos(spin)));
+  const colourIn = span(t, 3.4, 3.7);
+  if (colourIn < 1) { c.save(); c.shadowColor = '#ff6fc0'; c.shadowBlur = 40; drawChar(c, ch.key, cx, cy, size, { glow: true, scaleX: t < 2.6 ? sx : 1, alpha: 1 - colourIn }); c.restore(); }
+  if (colourIn > 0) drawChar(c, ch.key, cx, cy, size, { alpha: colourIn });
+  // chef outfit lands piece by piece
+  if (t >= 2.6) chefHat(c, cx, -160 + ((cy - size * .38) + 160) * easeBack(span(t, 2.6, 2.85)), size);
+  if (t >= 2.95) { const k = easeBack(span(t, 2.95, 3.1)); c.save(); c.translate(cx, cy + size * .36); c.scale(k, k); bandana(c, 0, 0, size); c.restore(); }
+  if (t >= 3.25) chopsticks(c, W + 100 + (cx + size * .3 - W - 100) * easeInOut(span(t, 3.25, 3.4)), cy + size * .3, size);
+  for (const L of [2.85, 3.1, 3.4]) { const d = t - L; if (d >= 0 && d < .6) starRing(c, cx, cy, 70 + 340 * d, 12, 15, 1 - d / .6, '#fff'); }
+  if (t > 3.4 && t < 3.55) { c.fillStyle = `rgba(255,255,255,${1 - span(t, 3.4, 3.55)})`; c.fillRect(0, 0, W, H); }   // burst of colour
+  if (pose > 0) sakura(c, it, t);
+  // words
+  if (t >= 3.7) { const k = span(t, 3.7, 3.9); comic(c, tr('introChef'), cx, H * .89, 66 * (2.2 - 1.2 * easeBack(k)), '#ff5fb0', -.04, Math.min(1, k * 3)); }
+  if (t >= 4.7) { const k = span(t, 4.7, 4.9); comic(c, tr('introReady'), cx, 58, 84 * (1.5 - .5 * easeBack(k)), '#7dff9b', .05, Math.min(1, k * 3)); }
   if (t > 5.45) { c.fillStyle = `rgba(255,255,255,${span(t, 5.45, 5.8)})`; c.fillRect(0, 0, W, H); }
 }

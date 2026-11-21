@@ -6,15 +6,16 @@ import { W, H, ROSTER } from './config.js';
 const INTRO_CUES = {
   '1p': [[0.05, 'transform'], [0.7, 'whoosh'], [1.8, 'chime'], [2.3, 'chime'], [2.8, 'chime'], [3.3, 'fanfare'], [4.4, 'ready']],
   '2p': [[0.1, 'thunder'], [0.3, 'whoosh'], [0.6, 'whoosh'], [1.1, 'whoosh'], [1.6, 'vs'], [3.6, 'fanfare']],
+  '1p-anime': [[0.05, 'transform'], [0.4, 'chime'], [1.0, 'whoosh'], [2.85, 'chime'], [3.1, 'chime'], [3.4, 'chime'], [3.6, 'fanfare'], [4.7, 'ready']],
   '2p-anime': [[0.05, 'thunder'], [0.3, 'chime'], [0.45, 'chime'], [0.9, 'vs'], [1.25, 'whoosh'], [1.33, 'whoosh'], [3.2, 'vs'], [4.0, 'rumble'], [4.6, 'fanfare']]
 };
-export const INTRO_DUR = { '1p': 5.2, '2p': 4.8, '2p-anime': 5.8 };
+export const INTRO_DUR = { '1p': 5.2, '2p': 4.8, '1p-anime': 5.8, '2p-anime': 5.8 };
 
-// style: 'kawaii' (default) or 'anime'. Anime currently has its own 2P face-off; 1P uses the kawaii transformation.
+// style: 'kawaii' (default) or 'anime' (its own 1P transformation and 2P face-off).
 export function createIntro(kind, random = Math.random, style = 'kawaii') {
-  if (kind === '2p' && style === 'anime') kind = '2p-anime';
+  if (style === 'anime') kind = kind === '2p' ? '2p-anime' : '1p-anime';
   const pick = n => { const keys = ROSTER.map(c => c.key), out = []; while (out.length < n) { const k = keys[Math.floor(random() * keys.length)]; if (!out.includes(k)) out.push(k); } return out; };
-  const chars = pick(kind === '1p' ? 1 : 2).map(k => ROSTER.find(c => c.key === k));
+  const chars = pick(kind.startsWith('1p') ? 1 : 2).map(k => ROSTER.find(c => c.key === k));
   // jagged lightning seam from top to bottom, slightly diagonal
   const seam = [];
   for (let i = 0; i <= 8; i++) { const k = i / 8; seam.push([W * (.56 - .12 * k) + (i && i < 8 ? (random() - .5) * 70 : 0), -10 + (H + 20) * k]); }

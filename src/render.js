@@ -3,8 +3,8 @@ import { CONFIG, W, H, BOX_TYPES } from './config.js';
 import { clamp, rndRange } from './util.js';
 import { SPRITES, BOX_STYLE } from './sprites.js';
 import { itemRadius, sushiRadius, heldPairs } from './game.js';
-import { introVersusAnime } from './anime.js';
-import { FONT, PLAYER_COLORS, easeInOut, easeBack, span, hash01, rrect, comic, starShape } from './draw.js';
+import { introVersusAnime, introTransformAnime } from './anime.js';
+import { FONT, PLAYER_COLORS, easeInOut, easeBack, span, hash01, rrect, comic, starShape, chefHat, bandana, chopsticks, starRing } from './draw.js';
 
 
 export function createRenderer(canvas) {
@@ -334,6 +334,7 @@ export function renderFrame(r, view) {
 
 export function drawIntro(r, it, t) {
   if (it.kind === '2p-anime') introVersusAnime(r.ctx, it, t);
+  else if (it.kind === '1p-anime') introTransformAnime(r.ctx, it, t);
   else if (it.kind === '2p') introVersus(r, it, t); else introTransform(r, it, t);
   const c = r.ctx;
   c.save(); c.globalAlpha = .8; c.font = `600 18px ${FONT}`; c.textAlign = 'right'; c.textBaseline = 'bottom'; c.lineJoin = 'round';
@@ -341,32 +342,6 @@ export function drawIntro(r, it, t) {
   c.fillStyle = '#fff'; c.fillText(t('skip'), W - 18, H - 14); c.restore();
 }
 
-function chefHat(c, x, y, s) {
-  c.save(); c.fillStyle = '#fff'; c.strokeStyle = '#d9d2e6'; c.lineWidth = s * .02;
-  for (const [dx, dy, rad] of [[-.2, -.25, .17], [.2, -.25, .17], [0, -.34, .21]]) { c.beginPath(); c.arc(x + dx * s, y + dy * s, rad * s, 0, 7); c.fill(); c.stroke(); }
-  rrect(c, x - s * .29, y - s * .13, s * .58, s * .17, s * .05); c.fill(); c.stroke();
-  c.strokeStyle = '#e9e3f2'; c.lineWidth = s * .012;
-  for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(x + i * s * .09, y - s * .11); c.lineTo(x + i * s * .09, y + s * .02); c.stroke(); }
-  c.restore();
-}
-function bandana(c, x, y, s) {
-  c.save(); c.fillStyle = '#ff4d6d'; c.strokeStyle = '#c2185b'; c.lineWidth = s * .02; c.lineJoin = 'round';
-  c.beginPath(); c.moveTo(x - s * .32, y - s * .04); c.lineTo(x + s * .32, y - s * .04); c.lineTo(x, y + s * .24); c.closePath(); c.fill(); c.stroke();
-  c.fillStyle = '#fff';
-  for (const [dx, dy] of [[-.15, .02], [.15, .02], [0, .1], [-.05, -.01], [.06, .17]]) { c.beginPath(); c.arc(x + dx * s, y + dy * s, s * .022, 0, 7); c.fill(); }
-  c.fillStyle = '#ff4d6d'; c.beginPath(); c.arc(x + s * .33, y - s * .03, s * .06, 0, 7); c.fill(); c.stroke();
-  c.restore();
-}
-function chopsticks(c, x, y, s) {
-  c.save(); c.translate(x, y); c.rotate(-.65); c.lineCap = 'round';
-  for (const [dy, rot] of [[0, 0], [s * .05, .07]]) { c.save(); c.rotate(rot); c.strokeStyle = '#8a5a2b'; c.lineWidth = s * .045; c.beginPath(); c.moveTo(0, dy); c.lineTo(s * .75, dy); c.stroke(); c.strokeStyle = '#d9a066'; c.lineWidth = s * .025; c.beginPath(); c.moveTo(s * .05, dy - s * .006); c.lineTo(s * .72, dy - s * .006); c.stroke(); c.restore(); }
-  c.restore();
-}
-function starRing(c, x, y, rad, n, size, alpha, col = '#ffe14d') {
-  c.save(); c.globalAlpha = alpha; c.fillStyle = col;
-  for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n; starShape(c, x + Math.cos(a) * rad, y + Math.sin(a) * rad, size, a); }
-  c.restore();
-}
 
 // 1P: magical-girl style transformation into a kawaii sushi chef
 function introTransform(r, it, tr) {
