@@ -76,6 +76,7 @@ Use the **calibration screen** (shown before the first game) to check: green dot
 - **Disco music** made live in the browser with the Web Audio API, with no audio files. It starts on the start page, dips under the intros and speeds up with the belt.
 - **Arcade feel:** combos, comic popups ("YUM!", "SUPER!"), particles, screen shake and sound effects.
 - **Gentle difficulty:** Easy (default), Normal or Hard, with the belt speeding up during each round.
+- **Belt reversals:** after a clear "⇄ REVERSE!" warning, the belt turns round and the sushi come from the other side.
 - **Top-5 leaderboard** with 3-letter initials, saved in the browser.
 - **English / Swedish**, switchable at any time from the top bar.
 - **One self-contained `index.html`.** It works on GitHub Pages or opened locally in Chrome.
@@ -91,6 +92,7 @@ Open ⚙️ **Settings** from the top bar or the start page.
 | Game time | Round length: 30 / 45 / 60 / 90 s | 60 s |
 | Difficulty | Belt speed and how many sushi arrive | Easy |
 | Mega sushi | Allow merging two matching sushi | On |
+| Belt reversals | The belt sometimes changes direction (with a warning) | On |
 | Volume | Sound effects and music | 60 % |
 | Music | Disco music on or off (effects stay on) | On |
 | Use camera | Off = mouse / touch only | On |

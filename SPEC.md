@@ -305,7 +305,7 @@ Each item comes back only if the core meets §11, and each gets its own small sp
 1. **Boba tea bonus:** coloured teas delivered to a bin that appears just before the tea.
 2. **Wasabi hazard:** touching it costs points; a kawaii cat shakes its head in pain.
 3. **Escalation:** gentle red glow and faster music as time runs out.
-4. **Belt reversal** (with a clear warning).
+4. ~~**Belt reversal**~~ → added in v1.3, see §12.2.
 5. **Rice piles** (sticky hand).
 6. ~~**Mega sushi**~~ → added in v1.1, see §12.1.
 7. Calm mode, colour-blind shapes on the boxes, offline (self-hosted) tracking files.
@@ -332,6 +332,19 @@ Pulled forward on request, ahead of the backlog order. It is on by default and c
 **Tunables (`CONFIG.mega`):** `mergeDist` 2.2 × sushi radius, `scale` 1.7, `base` 100, `comboStep` 4, `wrong` 15, `floatMs` 4000, `tipAt` 6 s.
 
 **Acceptance:** A11 – a player holding two matching sushi who brings their hands together gets a mega sushi every time in the recorded clips, and never merges with the other player's sushi.
+
+### 12.2 Belt reversal (v1.3)
+
+The belt sometimes changes direction, to keep rounds exciting. It is on by default and can be switched off in Settings ("Belt reversals").
+
+| Rule | Detail |
+|---|---|
+| Warning | 1.6 s before a flip: "⇄ REVERSE!", three beeps, and the belt edges flash red. |
+| The flip | The belt eases through a stop and runs the other way, with a swoosh, a small shake and big ▶▶▶ / ◀◀◀ arrows showing the new direction. New sushi enter from the new side. |
+| Timing | Easy: first at 30 s, then every 11–14 s. Normal: 22 s, then every 9–12 s. Hard: 14 s, then every 7–10 s. No new flip in the last 4 s. |
+| Fairness | A sushi being carried is not affected. A sushi that leaves at either end is a miss (only if it was on screen). |
+
+**Tunables (`CONFIG.reversal`):** per-difficulty `first` and `every`, `warnSec` 1.6, `ease` 2.2, `quietEnd` 4.
 
 ---
 

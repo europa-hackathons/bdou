@@ -49,6 +49,16 @@ export const CONFIG = {
     sinkMs: 300
   },
 
+  // SPEC §12.2 – belt reversal: first flip (s), then every [min, max] s, after a warning
+  reversal: {
+    easy:   { first: 30, every: [11, 14] },
+    normal: { first: 22, every: [9, 12] },
+    hard:   { first: 14, every: [7, 10] },
+    warnSec: 1.6,          // "⇄ REVERSE!" warning before the flip
+    ease: 2.2,             // how quickly the belt slows, stops and runs the other way
+    quietEnd: 4            // no new flip in the last few seconds
+  },
+
   // SPEC §12.1 – mega sushi
   mega: { mergeDist: 2.2, scale: 1.7, base: 100, comboStep: 4, wrong: 15, floatMs: 4000, tipAt: 6 },
 
@@ -64,7 +74,7 @@ export const CONFIG = {
   },
 
   durations: [30, 45, 60, 90],
-  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii' }
+  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii', reverse: true }
 };
 
 export const BOX_TYPES = ['maki', 'sashimi', 'avo'];

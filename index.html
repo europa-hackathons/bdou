@@ -139,6 +139,7 @@ input[type=checkbox]{width:28px;height:28px}
       <label><span data-i18n="duration"></span><select id="durSel"></select></label>
       <label><span data-i18n="diff"></span><select id="diffSel"></select></label>
       <label><span data-i18n="megaSetting"></span><input type="checkbox" id="megaChk"></label>
+      <label><span data-i18n="reverseSetting"></span><input type="checkbox" id="revChk"></label>
       <label><span data-i18n="anim"></span><select id="animSel"></select></label>
       <label><span data-i18n="volume"></span><input type="range" id="volRange" min="0" max="1" step="0.05"></label>
       <label><span data-i18n="music"></span><input type="checkbox" id="musicChk"></label>
@@ -242,6 +243,16 @@ const CONFIG = {
     sinkMs: 300
   },
 
+  // SPEC §12.2 – belt reversal: first flip (s), then every [min, max] s, after a warning
+  reversal: {
+    easy:   { first: 30, every: [11, 14] },
+    normal: { first: 22, every: [9, 12] },
+    hard:   { first: 14, every: [7, 10] },
+    warnSec: 1.6,          // "⇄ REVERSE!" warning before the flip
+    ease: 2.2,             // how quickly the belt slows, stops and runs the other way
+    quietEnd: 4            // no new flip in the last few seconds
+  },
+
   // SPEC §12.1 – mega sushi
   mega: { mergeDist: 2.2, scale: 1.7, base: 100, comboStep: 4, wrong: 15, floatMs: 4000, tipAt: 6 },
 
@@ -257,7 +268,7 @@ const CONFIG = {
   },
 
   durations: [30, 45, 60, 90],
-  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii' }
+  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii', reverse: true }
 };
 
 const BOX_TYPES = ['maki', 'sashimi', 'avo'];
@@ -301,6 +312,7 @@ const STRINGS = {
     rank: 'RANK', name: 'NAME', pts: 'SCORE', again: 'Play Again', menu: 'Menu',
     winner: 'Player {n} wins!', tie: "It's a tie!", sorted: 'sorted', best: 'best combo', acc: 'accuracy',
     maki: 'Maki', sashimi: 'Sashimi', avo: 'Avocado', p: 'P',
+    reverse: 'REVERSE!', reverseSetting: 'Belt reversals',
     tapMusic: 'Tap for disco music!', music: 'Music', anim: 'Animation style', anim_kawaii: 'Kawaii', anim_anime: 'Anime (beta)',
     camAsk: '📷 Allow the camera so the sushi can see you!', camWaking: '📷 Waking up the camera…', camReady: '📷 Camera ready!', camBlocked: '📷 Camera blocked – tap for help',
     camHelp: 'To allow the camera: click the camera or 🔒 icon at the left of the address bar, choose Allow, then reload the page.',
@@ -328,6 +340,7 @@ const STRINGS = {
     rank: 'PLATS', name: 'NAMN', pts: 'POÄNG', again: 'Spela igen', menu: 'Meny',
     winner: 'Spelare {n} vinner!', tie: 'Det blev oavgjort!', sorted: 'sorterade', best: 'bästa kombo', acc: 'träffsäkerhet',
     maki: 'Maki', sashimi: 'Sashimi', avo: 'Avokado', p: 'S',
+    reverse: 'OMVÄNT!', reverseSetting: 'Bandet byter håll',
     tapMusic: 'Tryck för discomusik!', music: 'Musik', anim: 'Animationsstil', anim_kawaii: 'Kawaii', anim_anime: 'Anime (beta)',
     camAsk: '📷 Tillåt kameran så att sushin kan se dig!', camWaking: '📷 Väcker kameran…', camReady: '📷 Kameran är redo!', camBlocked: '📷 Kameran är blockerad – tryck för hjälp',
     camHelp: 'Så tillåter du kameran: klicka på kamera- eller 🔒-ikonen till vänster om adressfältet, välj Tillåt och ladda om sidan.',
@@ -427,6 +440,8 @@ const SFX = {
   chime() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, .35, 'sine', .13, i * .045)); },
   fanfare() { [[523, 0], [659, 0], [784, 0], [1047, .18], [1319, .32]].forEach(([f, at]) => { tone(f, .5, 'square', .1, at); tone(f / 2, .5, 'triangle', .12, at); }); },
   thunder() { noiseSweep(1.4, .6, 0, 'lowpass', 1800, 120); tone(70, 1.1, 'sawtooth', .22, 0, 32); },
+  warn() { tone(880, .1, 'square', .16); tone(880, .1, 'square', .16, .18); tone(880, .1, 'square', .16, .36); },
+  reverse() { tone(420, .35, 'sawtooth', .18, 0, 110); tone(210, .35, 'square', .1, .05, 80); noiseSweep(.4, .25, 0, 'bandpass', 2500, 400); },
   rumble() { tone(55, 1.2, 'sawtooth', .18, 0, 48); tone(58, 1.2, 'square', .08, .05, 50); noiseSweep(1.2, .2, 0, 'lowpass', 300, 120); },
   vs() { tone(110, .5, 'square', .3, 0, 55); tone(220, .4, 'sawtooth', .16); noiseSweep(.35, .45, 0, 'lowpass', 3000, 200); },
 
@@ -524,7 +539,7 @@ const audio = {
 
 // ===== game.js =====
 // Pure, deterministic game rules (SPEC §5, §8). No DOM, no canvas, no clock.
-//   const g = createGame({ mode, difficulty, duration, seed });
+//   const g = createGame({ mode, difficulty, duration, seed, mega, reverse });
 //   const events = stepGame(g, dt, handPoints);
 // handPoints: [{ id, kind: 'body'|'hand'|'mouse'|'touch', player, x, y, lost }]
 
@@ -539,14 +554,17 @@ function rand(r) { // mulberry32
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-function createGame({ mode = 1, difficulty = 'easy', duration = 60, seed = 1, mega = true } = {}) {
+function createGame({ mode = 1, difficulty = 'easy', duration = 60, seed = 1, mega = true, reverse = true } = {}) {
+  const rev = CONFIG.reversal[difficulty] || CONFIG.reversal.easy;
   const lanes = lanesFor(mode).map((l, i) => ({ ...l, i, score: 0, combo: 0, maxCombo: 0, sorted: 0, wrong: 0, missed: 0, spawnT: .3 + i * .35 }));
   return {
     mode, difficulty: CONFIG.difficulty[difficulty] ? difficulty : 'easy', duration,
     phase: 'countdown', cd: CONFIG.countdown, time: 0, left: duration,
     speed: 0, beltDist: 0, step: 0, lastTick: null,
     sz: CONFIG.itemScale[mode] || 1, lanes, items: [], rng: makeRng(seed), nextId: 1,
-    mega: !!mega, tipShown: false
+    mega: !!mega, tipShown: false,
+    // belt direction: 1 = sushi move left, -1 = right; dirV eases between them so the belt slows, stops and turns
+    reverse: !!reverse, dir: 1, dirV: 1, nextRev: rev.first, revWarned: false
   };
 }
 
@@ -581,7 +599,18 @@ function stepGame(g, dt, hands = []) {
   if (g.mega && !g.tipShown && g.time >= CONFIG.mega.tipAt) { g.tipShown = true; ev.push({ type: 'tip' }); }
   if (g.left <= 5) { const s = Math.ceil(g.left); if (s !== g.lastTick && s > 0) { g.lastTick = s; ev.push({ type: 'tick' }); } }
   g.speed = beltSpeedAt(g.difficulty, g.time);
-  g.beltDist += g.speed * dt;
+  // belt reversal: warn, then flip; the belt eases through a stop to the new direction
+  const RV = CONFIG.reversal;
+  if (g.reverse && g.time < g.duration - RV.quietEnd) {
+    if (!g.revWarned && g.time >= g.nextRev - RV.warnSec) { g.revWarned = true; ev.push({ type: 'reverse-warn' }); }
+    if (g.time >= g.nextRev) {
+      const every = (RV[g.difficulty] || RV.easy).every;
+      g.dir = -g.dir; g.revWarned = false; g.nextRev = g.time + every[0] + (every[1] - every[0]) * rand(g.rng);
+      ev.push({ type: 'reverse', dir: g.dir });
+    }
+  }
+  g.dirV += (g.dir - g.dirV) * Math.min(1, dt * RV.ease);
+  g.beltDist += g.speed * g.dirV * dt;
   const R = itemRadius(g), L = CONFIG.layout, I = CONFIG.interaction, diff = CONFIG.difficulty[g.difficulty];
 
   // spawn
@@ -589,7 +618,7 @@ function stepGame(g, dt, hands = []) {
     lane.spawnT -= dt;
     if (lane.spawnT <= 0) {
       const type = BOX_TYPES[Math.floor(rand(g.rng) * 3)];
-      g.items.push({ id: g.nextId++, type, lane: lane.i, x: lane.x0 + lane.w + R + 10, y: L.itemY, st: 'belt', seen: false, holder: null, heldAt: 0, dropCol: -1, dropT: 0, ft: 0, t: 0, ph: rand(g.rng) * 6 });
+      g.items.push({ id: g.nextId++, type, lane: lane.i, x: g.dir > 0 ? lane.x0 + lane.w + R + 10 : lane.x0 - R - 10, y: L.itemY, st: 'belt', seen: false, holder: null, heldAt: 0, dropCol: -1, dropT: 0, ft: 0, t: 0, ph: rand(g.rng) * 6 });
       lane.spawnT = diff.spacing / g.speed * (.85 + .5 * rand(g.rng));
     }
   }
@@ -629,10 +658,11 @@ function stepGame(g, dt, hands = []) {
     const it = g.items[i], lane = g.lanes[it.lane];
     it.ph += dt * 6;
     if (it.st === 'belt') {
-      it.x -= g.speed * dt;
+      it.x -= g.speed * g.dirV * dt;
       it.y += (L.itemY - it.y) * Math.min(1, dt * 12);
-      if (it.x < lane.x0 + lane.w - 10) it.seen = true;
-      if (it.x < lane.x0 - sushiRadius(g, it) - 20) {
+      if (it.x > lane.x0 + 10 && it.x < lane.x0 + lane.w - 10) it.seen = true;
+      const off = sushiRadius(g, it) + 20;                          // it can leave at either end
+      if (it.x < lane.x0 - off || it.x > lane.x0 + lane.w + off) {
         g.items.splice(i, 1);
         if (it.seen) { lane.combo = 0; lane.missed++; ev.push({ type: 'miss', lane: lane.i, x: lane.x0 + 90, y: L.itemY }); }
       }
@@ -659,7 +689,7 @@ function findGrab(g, h, li, R) {
   let best = null, bd = Infinity;
   for (const it of g.items) {
     if (it.lane !== li || (it.st !== 'belt' && it.st !== 'float')) continue;
-    const pastX = it.x + (it.st === 'belt' ? g.speed * lag : 0);  // where it was a moment ago (camera lag)
+    const pastX = it.x + (it.st === 'belt' ? g.speed * g.dirV * lag : 0);  // where it was a moment ago (camera lag)
     const dx = Math.min(Math.abs(it.x - h.x), Math.abs(pastX - h.x)), dy = Math.abs(it.y - h.y);
     const d = dx * dx + dy * dy, rr = reach * (it.mega ? CONFIG.mega.scale : 1);
     if (d <= rr * rr && d < bd) { best = it; bd = d; }
@@ -1467,6 +1497,12 @@ function renderEvents(r, events, game, t) {
       burst(r, e.x, e.y, 6, ['#fff', '#ffe14d'], 220);
     } else if (e.type === 'miss') {
       if (game && game.lanes[e.lane] && game.lanes[e.lane].combo === 0) popText(r, t('miss'), e.x, e.y, '#ff9f9f', 36);
+    } else if (e.type === 'reverse-warn') {
+      popText(r, '⇄ ' + t('reverse'), W / 2, 300, '#ff6b6b', 66);
+    } else if (e.type === 'reverse') {
+      r.shake = Math.max(r.shake, 10);
+      const arrows = e.dir > 0 ? '◀◀◀' : '▶▶▶';
+      for (const l of game ? game.lanes : []) popText(r, arrows, l.x0 + l.w / 2, CONFIG.layout.beltTop + CONFIG.layout.beltH / 2, '#ffe14d', game.mode === 2 ? 46 : 60);
     } else if (e.type === 'faster') {
       popText(r, t('faster'), W / 2, 330, '#2de2e6', 60);
     } else if (e.type === 'go') {
@@ -1539,7 +1575,7 @@ function drawBackground(r, view, forceVideo) {
   discoBall(r, 300, 48, 34); discoBall(r, 980, 48, 34);
 }
 
-function drawBelt(r, dist) {
+function drawBelt(r, dist, warn = false) {
   const c = r.ctx, L = CONFIG.layout;
   c.fillStyle = '#2b1b4a'; c.fillRect(-20, L.beltTop, W + 40, L.beltH);
   c.save(); c.beginPath(); c.rect(-20, L.beltTop + 6, W + 40, L.beltH - 12); c.clip();
@@ -1549,7 +1585,7 @@ function drawBelt(r, dist) {
     c.beginPath(); c.moveTo(x, L.beltTop + L.beltH); c.lineTo(x + 24, L.beltTop); c.lineTo(x + 48, L.beltTop); c.lineTo(x + 24, L.beltTop + L.beltH); c.fill();
   }
   c.restore();
-  c.lineWidth = 6; c.strokeStyle = `hsl(${(r.clock * 120) % 360},100%,65%)`;
+  c.lineWidth = warn ? 9 : 6; c.strokeStyle = warn && Math.floor(r.clock * 7) % 2 ? '#ff3b3b' : `hsl(${(r.clock * 120) % 360},100%,65%)`; // red flashing edges = reversal coming
   if (!r.low) { c.shadowColor = c.strokeStyle; c.shadowBlur = 16; }
   c.beginPath(); c.moveTo(0, L.beltTop); c.lineTo(W, L.beltTop); c.moveTo(0, L.beltTop + L.beltH); c.lineTo(W, L.beltTop + L.beltH); c.stroke(); c.shadowBlur = 0;
   for (let x = 20; x < W; x += 60) { c.fillStyle = `hsl(${(x + r.clock * 200) % 360},100%,70%)`; c.beginPath(); c.arc(x, L.beltTop + L.beltH + 14, 5, 0, 7); c.fill(); }
@@ -1715,7 +1751,7 @@ function renderFrame(r, view) {
       const fx = two ? l.x0 - 8 : 0, fw = two ? l.w + 16 : W;
       c.save();
       if (two) { rrect(c, fx, 4, fw, H - 8, 26); c.clip(); c.fillStyle = 'rgba(20,8,50,.35)'; c.fillRect(fx, 0, fw, H); }
-      drawBelt(r, g.beltDist);
+      drawBelt(r, g.beltDist, g.revWarned);
       const hover = [0, 0, 0];
       for (const it of g.items) if (it.lane === li && it.st === 'held' && it.dropCol >= 0) hover[it.dropCol] = Math.max(hover[it.dropCol], .05 + it.dropT / (CONFIG.interaction.dropDwellMs / 1000));
       drawBoxes(r, l, li, g.mode, view.t, hover);
@@ -1987,6 +2023,7 @@ function createUI(app) {
   byId('durSel').value = S.dur; byId('diffSel').value = S.diff; byId('volRange').value = S.vol;
   byId('musicChk').checked = S.music !== false; byId('musicChk').onchange = e => app.setSetting('music', e.target.checked);
   byId('animSel').value = S.anim || 'kawaii'; byId('animSel').onchange = e => app.setSetting('anim', e.target.value);
+  byId('revChk').checked = S.reverse !== false; byId('revChk').onchange = e => app.setSetting('reverse', e.target.checked);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);
@@ -2272,7 +2309,7 @@ async function startGame(mode) {
 function startCountdown() {
   const mode = run.pendingMode;
   run.calibratedMode = trackingReady() ? mode : run.calibratedMode;
-  run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, seed: (Date.now() & 0x7fffffff) });
+  run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, reverse: S.reverse !== false, seed: (Date.now() & 0x7fffffff) });
   run.acc = 0; run.screen = 'game'; ui.show(null);
 }
 function endGame() {
@@ -2295,6 +2332,8 @@ function handleEvents(events) {
     if (e.type === 'grab') audio.play('grab');
     else if (e.type === 'correct') audio.play(e.mega ? 'mega' : e.milestone ? 'combo' : 'good', e.combo);
     else if (e.type === 'merge') audio.play('mega');
+    else if (e.type === 'reverse-warn') audio.play('warn');
+    else if (e.type === 'reverse') audio.play('reverse');
     else if (e.type === 'wrong') audio.play('wrong');
     else if (e.type === 'miss') audio.play('miss');
     else if (e.type === 'tick') audio.play('tick');

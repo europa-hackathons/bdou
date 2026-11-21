@@ -24,6 +24,7 @@ export function createUI(app) {
   byId('durSel').value = S.dur; byId('diffSel').value = S.diff; byId('volRange').value = S.vol;
   byId('musicChk').checked = S.music !== false; byId('musicChk').onchange = e => app.setSetting('music', e.target.checked);
   byId('animSel').value = S.anim || 'kawaii'; byId('animSel').onchange = e => app.setSetting('anim', e.target.value);
+  byId('revChk').checked = S.reverse !== false; byId('revChk').onchange = e => app.setSetting('reverse', e.target.checked);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);

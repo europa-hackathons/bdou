@@ -1,5 +1,5 @@
 // Pure, deterministic game rules (SPEC §5, §8). No DOM, no canvas, no clock.
-//   const g = createGame({ mode, difficulty, duration, seed });
+//   const g = createGame({ mode, difficulty, duration, seed, mega, reverse });
 //   const events = stepGame(g, dt, handPoints);
 // handPoints: [{ id, kind: 'body'|'hand'|'mouse'|'touch', player, x, y, lost }]
 import { CONFIG, H, BOX_TYPES, lanesFor, boxIndexAt, boxCenter, dropLineY } from './config.js';
@@ -14,14 +14,17 @@ export function rand(r) { // mulberry32
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function createGame({ mode = 1, difficulty = 'easy', duration = 60, seed = 1, mega = true } = {}) {
+export function createGame({ mode = 1, difficulty = 'easy', duration = 60, seed = 1, mega = true, reverse = true } = {}) {
+  const rev = CONFIG.reversal[difficulty] || CONFIG.reversal.easy;
   const lanes = lanesFor(mode).map((l, i) => ({ ...l, i, score: 0, combo: 0, maxCombo: 0, sorted: 0, wrong: 0, missed: 0, spawnT: .3 + i * .35 }));
   return {
     mode, difficulty: CONFIG.difficulty[difficulty] ? difficulty : 'easy', duration,
     phase: 'countdown', cd: CONFIG.countdown, time: 0, left: duration,
     speed: 0, beltDist: 0, step: 0, lastTick: null,
     sz: CONFIG.itemScale[mode] || 1, lanes, items: [], rng: makeRng(seed), nextId: 1,
-    mega: !!mega, tipShown: false
+    mega: !!mega, tipShown: false,
+    // belt direction: 1 = sushi move left, -1 = right; dirV eases between them so the belt slows, stops and turns
+    reverse: !!reverse, dir: 1, dirV: 1, nextRev: rev.first, revWarned: false
   };
 }
 
@@ -56,7 +59,18 @@ export function stepGame(g, dt, hands = []) {
   if (g.mega && !g.tipShown && g.time >= CONFIG.mega.tipAt) { g.tipShown = true; ev.push({ type: 'tip' }); }
   if (g.left <= 5) { const s = Math.ceil(g.left); if (s !== g.lastTick && s > 0) { g.lastTick = s; ev.push({ type: 'tick' }); } }
   g.speed = beltSpeedAt(g.difficulty, g.time);
-  g.beltDist += g.speed * dt;
+  // belt reversal: warn, then flip; the belt eases through a stop to the new direction
+  const RV = CONFIG.reversal;
+  if (g.reverse && g.time < g.duration - RV.quietEnd) {
+    if (!g.revWarned && g.time >= g.nextRev - RV.warnSec) { g.revWarned = true; ev.push({ type: 'reverse-warn' }); }
+    if (g.time >= g.nextRev) {
+      const every = (RV[g.difficulty] || RV.easy).every;
+      g.dir = -g.dir; g.revWarned = false; g.nextRev = g.time + every[0] + (every[1] - every[0]) * rand(g.rng);
+      ev.push({ type: 'reverse', dir: g.dir });
+    }
+  }
+  g.dirV += (g.dir - g.dirV) * Math.min(1, dt * RV.ease);
+  g.beltDist += g.speed * g.dirV * dt;
   const R = itemRadius(g), L = CONFIG.layout, I = CONFIG.interaction, diff = CONFIG.difficulty[g.difficulty];
 
   // spawn
@@ -64,7 +78,7 @@ export function stepGame(g, dt, hands = []) {
     lane.spawnT -= dt;
     if (lane.spawnT <= 0) {
       const type = BOX_TYPES[Math.floor(rand(g.rng) * 3)];
-      g.items.push({ id: g.nextId++, type, lane: lane.i, x: lane.x0 + lane.w + R + 10, y: L.itemY, st: 'belt', seen: false, holder: null, heldAt: 0, dropCol: -1, dropT: 0, ft: 0, t: 0, ph: rand(g.rng) * 6 });
+      g.items.push({ id: g.nextId++, type, lane: lane.i, x: g.dir > 0 ? lane.x0 + lane.w + R + 10 : lane.x0 - R - 10, y: L.itemY, st: 'belt', seen: false, holder: null, heldAt: 0, dropCol: -1, dropT: 0, ft: 0, t: 0, ph: rand(g.rng) * 6 });
       lane.spawnT = diff.spacing / g.speed * (.85 + .5 * rand(g.rng));
     }
   }
@@ -104,10 +118,11 @@ export function stepGame(g, dt, hands = []) {
     const it = g.items[i], lane = g.lanes[it.lane];
     it.ph += dt * 6;
     if (it.st === 'belt') {
-      it.x -= g.speed * dt;
+      it.x -= g.speed * g.dirV * dt;
       it.y += (L.itemY - it.y) * Math.min(1, dt * 12);
-      if (it.x < lane.x0 + lane.w - 10) it.seen = true;
-      if (it.x < lane.x0 - sushiRadius(g, it) - 20) {
+      if (it.x > lane.x0 + 10 && it.x < lane.x0 + lane.w - 10) it.seen = true;
+      const off = sushiRadius(g, it) + 20;                          // it can leave at either end
+      if (it.x < lane.x0 - off || it.x > lane.x0 + lane.w + off) {
         g.items.splice(i, 1);
         if (it.seen) { lane.combo = 0; lane.missed++; ev.push({ type: 'miss', lane: lane.i, x: lane.x0 + 90, y: L.itemY }); }
       }
@@ -134,7 +149,7 @@ function findGrab(g, h, li, R) {
   let best = null, bd = Infinity;
   for (const it of g.items) {
     if (it.lane !== li || (it.st !== 'belt' && it.st !== 'float')) continue;
-    const pastX = it.x + (it.st === 'belt' ? g.speed * lag : 0);  // where it was a moment ago (camera lag)
+    const pastX = it.x + (it.st === 'belt' ? g.speed * g.dirV * lag : 0);  // where it was a moment ago (camera lag)
     const dx = Math.min(Math.abs(it.x - h.x), Math.abs(pastX - h.x)), dy = Math.abs(it.y - h.y);
     const d = dx * dx + dy * dy, rr = reach * (it.mega ? CONFIG.mega.scale : 1);
     if (d <= rr * rr && d < bd) { best = it; bd = d; }
