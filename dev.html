@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BDOU – Disco Sushi Train</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='44' fill='%232b2d42'/%3E%3Ccircle cx='50' cy='50' r='36' fill='%23fff'/%3E%3Ccircle cx='50' cy='50' r='22' fill='%23ff8a65'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#ff5fb0;--cyan:#2de2e6;--yellow:#ffe14d;--ink:#2b1b4a;--font:'Fredoka','Baloo 2','Chalkboard SE','Comic Sans MS','Arial Rounded MT Bold',system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#1a0b3a;overflow:hidden;font-family:var(--font);color:#fff;user-select:none;-webkit-user-select:none}
+#bar{position:fixed;left:0;right:0;top:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:50;background:linear-gradient(90deg,#ff5fb0,#7b5cff,#2de2e6);box-shadow:0 4px 18px rgba(0,0,0,.4)}
+#bar .logo{font-weight:700;font-size:28px;letter-spacing:3px;text-shadow:2px 2px 0 var(--ink),-1px -1px 0 var(--ink),1px -1px 0 var(--ink),-1px 1px 0 var(--ink)}
+#bar .grp{display:flex;gap:8px;align-items:center}
+.pill{border:3px solid #fff;background:rgba(43,27,74,.55);color:#fff;font:700 16px var(--font);border-radius:999px;padding:5px 14px;cursor:pointer}
+.pill.on{background:#fff;color:var(--ink)}
+.pill:hover{transform:scale(1.06)}
+#stage{position:absolute;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;touch-action:none;background:#2a0f5a;border-radius:18px;box-shadow:0 0 60px rgba(255,95,176,.45)}
+#c{position:absolute;left:0;top:0;width:1280px;height:720px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:10}
+.hidden{display:none!important}
+#menu{background:radial-gradient(ellipse at center,rgba(26,11,58,.88) 0%,rgba(26,11,58,.7) 60%,rgba(26,11,58,.45) 100%);gap:8px}
+.title{font-weight:700;font-size:150px;line-height:1;letter-spacing:10px;margin:0;background:linear-gradient(90deg,#ff5fb0,#ffe14d,#2de2e6,#ff5fb0);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(5px 6px 0 var(--ink)) drop-shadow(0 0 20px rgba(255,255,255,.7));animation:rainbow 4s linear infinite,bob 2s ease-in-out infinite}
+@keyframes rainbow{to{background-position:300% 0}}
+@keyframes bob{50%{transform:translateY(-8px) rotate(-1.5deg)}}
+.tag{font-size:42px;font-weight:700;margin:6px 0 0;padding:8px 34px;border-radius:999px;background:rgba(43,27,74,.6);border:3px solid rgba(255,255,255,.55);text-shadow:3px 3px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink);letter-spacing:.5px}
+.btn{font:700 34px var(--font);color:var(--ink);background:linear-gradient(180deg,#fff6a8,#ffd23d);border:5px solid #fff;border-radius:999px;padding:12px 44px;cursor:pointer;box-shadow:0 7px 0 #c8870a,0 12px 22px rgba(0,0,0,.4);transition:transform .08s}
+.btn.pink{background:linear-gradient(180deg,#ffb3dc,#ff5fb0);box-shadow:0 7px 0 #b3267a,0 12px 22px rgba(0,0,0,.4)}
+.btn.cyan{background:linear-gradient(180deg,#b6fbff,#2de2e6);box-shadow:0 7px 0 #138e93,0 12px 22px rgba(0,0,0,.4)}
+.btn.mid{font-size:28px;padding:10px 38px}
+.btn.small{font-size:22px;padding:8px 26px}
+.btn:hover{transform:scale(1.07) rotate(-1deg)}
+.btn:active{transform:translateY(5px)}
+.btn:disabled{filter:grayscale(.8);opacity:.5;cursor:default}
+.row{display:flex;gap:22px;align-items:center;justify-content:center}
+.steps{display:flex;gap:16px;align-items:center;font-size:26px;margin-top:22px;background:rgba(255,255,255,.14);border-radius:999px;padding:10px 30px}
+.steps i{font-style:normal;opacity:.7;font-size:34px}
+.steps b{font-weight:700}
+.menulink{font:700 24px var(--font);color:#fff;background:transparent;border:3px solid rgba(255,255,255,.7);border-radius:999px;padding:8px 24px;cursor:pointer}
+.menulink:hover{background:rgba(255,255,255,.2)}
+.musichint{position:absolute;top:22px;right:26px;font-size:20px;background:rgba(255,95,176,.35);animation:hintpulse 1.2s ease-in-out infinite}
+@keyframes hintpulse{50%{transform:scale(1.08);box-shadow:0 0 22px rgba(255,225,77,.8)}}
+.panel{background:rgba(43,27,74,.9);border:5px solid #fff;border-radius:34px;padding:26px 40px;box-shadow:0 0 40px rgba(255,95,176,.6)}
+.panel label{display:flex;align-items:center;justify-content:space-between;gap:30px;font-size:24px;margin:12px 0}
+select,input[type=range]{font:700 20px var(--font);border-radius:14px;padding:6px 10px}
+input[type=checkbox]{width:28px;height:28px}
+.chip{font-size:26px;font-weight:700;border:4px solid #fff;border-radius:999px;padding:6px 24px;background:rgba(255,255,255,.15)}
+.chip.ok{background:#3ecf6a;color:#06301a}
+#goTitle{font-size:78px;font-weight:700;margin:0;letter-spacing:8px;text-shadow:5px 5px 0 #d6007a,-3px -3px 0 var(--cyan);animation:flick 1.1s steps(2) infinite}
+@keyframes flick{50%{opacity:.78;transform:scale(1.03)}}
+#goScores{font-size:34px;font-weight:700;display:flex;gap:40px}
+#goScores span{background:rgba(255,255,255,.15);padding:6px 22px;border-radius:20px;border:3px solid #fff}
+#goScores small{display:block;font-size:20px;font-weight:500;opacity:.9}
+#entryMsg{font-size:30px;font-weight:700;margin-bottom:8px}
+#slots{display:flex;gap:18px;justify-content:center;margin-bottom:12px}
+.slot{width:86px;height:104px;border:5px solid #fff;border-radius:20px;background:rgba(255,255,255,.12);font-size:76px;font-weight:700;line-height:96px;color:var(--yellow);text-shadow:3px 3px 0 var(--ink)}
+.slot.cur{border-color:var(--yellow);animation:blinkb .6s steps(2) infinite}
+@keyframes blinkb{50%{background:rgba(255,225,77,.35)}}
+#kbd{display:grid;grid-template-columns:repeat(9,66px);gap:8px;justify-content:center}
+#kbd button{font:700 30px var(--font);height:58px;border-radius:16px;border:3px solid #fff;background:linear-gradient(180deg,#d9c8ff,#8c6bff);color:#fff;text-shadow:2px 2px 0 var(--ink);cursor:pointer;box-shadow:0 4px 0 #4a2fb0}
+#kbd button:hover{background:linear-gradient(180deg,#fff6a8,#ffd23d);color:var(--ink);text-shadow:none}
+#kbd button:disabled{opacity:.4}
+#kbd button.wide{grid-column:span 2}
+.board{border-collapse:separate;border-spacing:0 6px;font-size:32px;font-weight:700;min-width:520px}
+.board td{background:rgba(255,255,255,.14);padding:6px 24px}
+.board td:first-child{border-radius:18px 0 0 18px;color:var(--yellow)}
+.board td:last-child{border-radius:0 18px 18px 0;text-align:right}
+.board tr.me td{background:linear-gradient(90deg,#ff5fb0,#ffd23d);color:var(--ink);animation:pulse .7s ease-in-out infinite alternate}
+@keyframes pulse{to{filter:brightness(1.25)}}
+.board th{font-size:22px;opacity:.8;padding:0 24px;text-align:left}
+.h2{font-size:46px;margin:0;font-weight:700;color:var(--yellow);text-shadow:4px 4px 0 var(--ink)}
+#winner{font-size:40px;font-weight:700;color:var(--cyan);text-shadow:3px 3px 0 var(--ink);margin:0}
+#loading{background:rgba(26,11,58,.85);z-index:30}
+#loading .spin{font-size:90px;animation:spin 1.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loadMsg{font-size:34px;font-weight:700}
+#toast{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:#fff;color:var(--ink);font-weight:700;font-size:22px;padding:10px 24px;border-radius:999px;z-index:40;border:4px solid var(--pink);max-width:1100px;text-align:center}
+#debugPanel{position:absolute;left:10px;bottom:10px;z-index:45;background:rgba(0,0,0,.78);border:2px solid #7dff9b;border-radius:12px;padding:10px 12px;font:13px/1.4 system-ui,sans-serif;max-width:520px}
+#debugPanel .dbg-title{font-weight:700;color:#7dff9b}
+#debugPanel .dbg-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+#debugPanel button{font:600 13px system-ui,sans-serif;border-radius:8px;border:1px solid #7dff9b;background:#10301a;color:#fff;padding:5px 9px;cursor:pointer}
+#dbgStats{white-space:pre;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="logo">BDOU 🍣</div>
+  <div class="grp">
+    <button class="pill" data-lang="en">EN</button>
+    <button class="pill" data-lang="sv">SV</button>
+  </div>
+  <div class="grp">
+    <button class="pill hidden" id="quitBtn" data-i18n="quit"></button>
+    <button class="pill" id="fsBtn" data-i18n-title="fullscreen">⛶</button>
+    <button class="pill" id="muteBtn">🔊</button>
+    <button class="pill" id="setBtn" data-i18n-title="settings">⚙️</button>
+  </div>
+</div>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <div class="screen" id="menu">
+    <button class="menulink musichint" id="musicHint">🎵 <span data-i18n="tapMusic"></span></button>
+    <h1 class="title">BDOU</h1>
+    <p class="tag" data-i18n="tagline"></p>
+    <div class="row" style="margin-top:14px">
+      <button class="btn pink mid" id="play1" data-i18n="play1"></button>
+      <button class="btn cyan mid" id="play2" data-i18n="play2"></button>
+    </div>
+    <div class="steps">
+      <span>👋 <b data-i18n="step1"></b></span><i>›</i>
+      <span>🍣 <b data-i18n="step2"></b></span><i>›</i>
+      <span>📦 <b data-i18n="step3"></b></span>
+    </div>
+    <div class="row" style="gap:14px;margin-top:6px">
+      <button class="menulink" id="hsBtn">🏆 <span data-i18n="highscores"></span></button>
+      <button class="menulink" id="menuSet">⚙️ <span data-i18n="settings"></span></button>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="hsScreen" style="background:rgba(26,11,58,.85)">
+    <h2 class="h2" data-i18n="highscores"></h2>
+    <table class="board" id="board2"></table>
+    <button class="btn" id="hsBack" data-i18n="back"></button>
+  </div>
+
+  <div class="screen hidden" id="settings" style="background:rgba(26,11,58,.75);z-index:20">
+    <div class="panel">
+      <h2 style="margin:0 0 6px;font-size:44px" data-i18n="settings"></h2>
+      <label><span data-i18n="duration"></span><select id="durSel"></select></label>
+      <label><span data-i18n="diff"></span><select id="diffSel"></select></label>
+      <label><span data-i18n="megaSetting"></span><input type="checkbox" id="megaChk"></label>
+      <label><span data-i18n="volume"></span><input type="range" id="volRange" min="0" max="1" step="0.05"></label>
+      <label><span data-i18n="music"></span><input type="checkbox" id="musicChk"></label>
+      <label><span data-i18n="useCam"></span><input type="checkbox" id="camChk"></label>
+      <label><span data-i18n="tracking"></span><select id="trkSel"></select></label>
+      <label><span data-i18n="zoom"></span><input type="range" id="zoomRange" min="1" max="2.5" step="0.1"></label>
+      <label><span data-i18n="backdrop"></span><input type="checkbox" id="bdChk"></label>
+      <div class="row" style="margin-top:20px"><button class="btn" id="setClose" data-i18n="back"></button></div>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="loading"><div class="spin">🍣</div><div id="loadMsg"></div></div>
+
+  <div class="screen hidden" id="calib" style="justify-content:flex-end;padding-bottom:26px;pointer-events:none">
+    <div class="panel" style="pointer-events:auto;padding:16px 30px">
+      <h2 style="margin:0;font-size:38px" data-i18n="calibTitle"></h2>
+      <div id="calibChips" class="row" style="margin:10px 0"></div>
+      <label style="margin:6px 0"><span data-i18n="zoom"></span><input type="range" id="zoomRange2" min="1" max="2.5" step="0.1"></label>
+      <button class="btn small" id="calibGo" data-i18n="start"></button>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="over" style="background:rgba(26,11,58,.78);gap:6px">
+    <h1 id="goTitle"></h1>
+    <div id="goScores"></div>
+    <div id="entry" class="hidden">
+      <div id="entryMsg"></div>
+      <div id="slots"><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+      <div id="kbd"></div>
+    </div>
+    <div id="boardWrap" class="hidden" style="flex-direction:column;align-items:center;gap:6px;display:flex">
+      <h2 class="h2" data-i18n="highscores"></h2>
+      <p id="winner"></p>
+      <table class="board" id="board"></table>
+      <div class="row" style="margin-top:6px">
+        <button class="btn pink" id="again" data-i18n="again"></button>
+        <button class="btn cyan" id="toMenu" data-i18n="menu"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
