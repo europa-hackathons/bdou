@@ -2,6 +2,8 @@
 
 *Sushi disco conveyor belts of destiny.*
 
+🏫 **Made for the Europaskolan PYP4 Hackathon.**
+
 **Catch the disco sushi before it rolls away!** BDOU is a kawaii, arcade-style webcam game for kids. Kawaii sushi characters dance past on a disco conveyor belt. Players stand in front of the camera, reach up to grab a sushi with their hand, and drop it into the matching takeout box before it rolls away. For one or two players, in English or Swedish, right in the browser.
 
 ▶️ **Play it now: https://europa-hackathons.github.io/bdou/**
@@ -220,10 +222,16 @@ Workflow:
 
 ## Credits
 
+- Created for the **Europaskolan PYP4 Hackathon**.
 - Body and hand tracking: [MediaPipe Tasks Vision](https://developers.google.com/mediapipe) by Google.
 - Font: [Fredoka](https://fonts.google.com/specimen/Fredoka) via Google Fonts.
 - All characters, graphics, music and sound effects are made in code (SVG, Canvas and the Web Audio API).
 
 ## License
 
-No license has been chosen yet, so all rights are reserved by the authors for now. If you'd like to reuse the code, please ask first.
+**© 2026 the BDOU creators. All rights reserved.** See [LICENSE](LICENSE).
+
+- ✅ Anyone may **play** the game for personal, family, classroom and other non-commercial use.
+- 🚫 Without written permission from the creators, you may not copy, modify, redistribute, sell or build on the game, its code, characters, music, artwork or the name "BDOU".
+
+The source code is visible on GitHub so people can see how it works, but that gives no right to reuse it. To ask for permission, open an issue on this repository. Third-party parts keep their own licenses: MediaPipe (Apache 2.0) and the Fredoka font (SIL OFL 1.1).

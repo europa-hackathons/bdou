@@ -1,0 +1,39 @@
+BDOU – Disco Sushi Train
+Copyright (c) 2026 the BDOU creators.
+Made for the Europaskolan PYP4 Hackathon.
+
+ALL RIGHTS RESERVED.
+
+This game, including its source code, artwork, characters (such as
+Maki-chan, Sashimi-kun, Avo-san, Tamago-chan and Onigiri-kun), music,
+sound effects, text and the name "BDOU", is the property of its
+creators.
+
+What you MAY do
+- Play the game at https://europa-hackathons.github.io/bdou/ (or a copy
+  shared by the creators) for personal, family, classroom and other
+  non-commercial purposes.
+
+What you may NOT do without prior written permission from the creators
+- Copy, modify, translate or adapt the game or any part of it.
+- Publish, distribute, sublicense, sell or host copies or modified
+  versions of it.
+- Use the game, its characters, music, artwork or the name "BDOU" for
+  any commercial purpose.
+- Use it, or any part of it, to create another game, product or service.
+
+Viewing the source code in this repository, and forking it on GitHub,
+is allowed only to the extent required by GitHub's Terms of Service.
+This does not grant any other rights.
+
+Third-party components are not covered by this license and keep their
+own licenses: MediaPipe Tasks Vision (Apache License 2.0) and the
+Fredoka font (SIL Open Font License 1.1), both loaded from their public
+CDNs.
+
+THE GAME IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE CREATORS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE GAME.
+
+To ask for permission, contact the creators through
+https://github.com/europa-hackathons/bdou.
