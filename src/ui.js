@@ -21,6 +21,7 @@ export function createUI(app) {
   /* ---- settings form ---- */
   const S = app.settings;
   byId('durSel').value = S.dur; byId('diffSel').value = S.diff; byId('volRange').value = S.vol;
+  byId('musicChk').checked = S.music !== false; byId('musicChk').onchange = e => app.setSetting('music', e.target.checked);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);

@@ -1,6 +1,6 @@
-// Web Audio oscillator sound effects and a simple disco beat. No audio files.
+// Web Audio oscillator sound effects and a disco music loop. No audio files.
 let AC = null, master = null, noiseBuf = null;
-const audioState = { vol: .6, mute: false, beatOn: false, next: 0, step: 0, bpm: 118 };
+const audioState = { vol: .6, mute: false };
 
 function ctxA() {
   if (!AC) {
@@ -62,31 +62,80 @@ const SFX = {
   ready() { [523, 784].forEach((f, i) => tone(f, .18, 'triangle', .2, i * .12)); }
 };
 
-const BASS = [0, -1, 0, -1, 12, -1, 0, -1, 7, -1, 7, -1, 10, -1, 5, -1];
-const ARP = [0, 3, 7, 10, 12, 10, 7, 3];
-function beatStep(s, at) {
-  const rel = at - AC.currentTime;
-  if (s % 4 === 0) tone(150, .16, 'sine', .45, rel, 40);
-  if (s % 2 === 1) noise(.05, .12, rel, 7000);
-  if (s % 8 === 4) noise(.12, .18, rel, 1800);
-  if (BASS[s] >= 0) tone(55 * Math.pow(2, BASS[s] / 12), .2, 'sawtooth', .13, rel);
-  if (s % 2 === 1) tone(220 * Math.pow(2, ARP[(s >> 1) % 8] / 12), .1, 'square', .04, rel);
+/* ---------- disco music: a 4-bar loop on a 16th-note step sequencer ---------- */
+// Am7 – Dm7 – G7 – Cmaj7: octave-bouncing bass, offbeat chord stabs, four-on-the-floor, open hats, claps.
+const DISCO = {
+  bass: [45, 38, 43, 36],                                   // A, D, G, C (midi)
+  chords: [[57, 60, 64, 67], [57, 60, 62, 65], [55, 59, 62, 65], [55, 59, 60, 64]]
+};
+const music = { mode: 'off', next: 0, step: 0, bpm: 120, on: true, bus: null };
+const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function musicBus() {
+  if (!music.bus) { music.bus = AC.createGain(); music.bus.gain.value = 0; music.bus.connect(master); }
+  return music.bus;
+}
+function setMusicLevel() {
+  if (!AC) return;
+  const lvl = !music.on || music.mode === 'off' ? 0 : music.mode === 'intro' ? .12 : music.mode === 'menu' ? .5 : .55;
+  musicBus().gain.setTargetAtTime(lvl, AC.currentTime, .25);
+}
+function voice(type, f, t0, d, v, { lp = 0, f2 = 0, detune = 0 } = {}) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0); o.detune.value = detune;
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+  g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(v, t0 + .006); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  let node = o;
+  if (lp) { const fl = AC.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(lp, t0); fl.frequency.exponentialRampToValueAtTime(Math.max(200, lp / 4), t0 + d); fl.Q.value = 6; o.connect(fl); node = fl; }
+  node.connect(g); g.connect(musicBus()); o.start(t0); o.stop(t0 + d + .02);
+}
+function hiss(t0, d, v, type, freq, q = .7) {
+  const sN = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  sN.buffer = noiseBuf; fl.type = type; fl.frequency.value = freq; fl.Q.value = q;
+  g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  sN.connect(fl); fl.connect(g); g.connect(musicBus()); sN.start(t0, Math.random() * .3); sN.stop(t0 + d + .02);
+}
+function discoStep(s, t0) {
+  const bar = (s >> 4) & 3, st = s & 15, game = music.mode === 'game', root = DISCO.bass[bar], chord = DISCO.chords[bar];
+  const fill = bar === 3 && st >= 12;                                       // clap roll into the next loop
+  // drums
+  if (st % 4 === 0) { voice('sine', 160, t0, .22, .9, { f2: 42 }); voice('triangle', 90, t0, .05, .25); }
+  if (st % 4 === 2) hiss(t0, .16, .16, 'highpass', 7500);                  // open hat on the offbeat
+  else if (game || st % 2 === 1) hiss(t0, .03, .06, 'highpass', 9000);     // closed hats
+  if (st === 4 || st === 12 || fill) { const v = fill ? .1 + (st - 12) * .05 : .28; hiss(t0, .14, v, 'bandpass', 1400, 1.2); hiss(t0 + .012, .12, v * .7, 'bandpass', 1100, 1.2); }
+  // octave-bouncing bass (8ths) with a 16th pickup
+  if (st % 2 === 0) voice('sawtooth', midiHz(root + (st % 4 === 2 ? 12 : 0)), t0, .17, .32, { lp: 1100 });
+  if (st === 15) voice('sawtooth', midiHz(root + 10), t0, .1, .22, { lp: 900 });
+  // funky chord stabs on the "and"s
+  if (st === 6 || st === 14 || (game && st === 3)) for (const m of chord) { voice('square', midiHz(m), t0, .16, .05, { lp: 3200, detune: -7 }); voice('sawtooth', midiHz(m), t0, .16, .04, { lp: 3200, detune: 7 }); }
+  // sparkly arpeggio: always in game, in the second half of the loop on the menu
+  if ((game || bar >= 2) && st % 2 === 1) voice('triangle', midiHz(chord[(st >> 1) % 4] + 24), t0, .12, .06);
+  // string-ish swell at the top of each loop
+  if (st === 0 && bar === 0) for (const m of chord) voice('sawtooth', midiHz(m + 12), t0, 1.6, .025, { lp: 2400 });
 }
 setInterval(() => {
-  if (!audioState.beatOn || !AC) return;
-  while (audioState.next < AC.currentTime + .15) {
-    beatStep(audioState.step, Math.max(audioState.next, AC.currentTime));
-    audioState.next += 60 / audioState.bpm / 2;
-    audioState.step = (audioState.step + 1) % 16;
+  if (!AC || AC.state !== 'running' || music.mode === 'off') return;
+  if (music.next < AC.currentTime) music.next = AC.currentTime + .05;
+  while (music.next < AC.currentTime + .12) {
+    discoStep(music.step, music.next);
+    music.next += 60 / music.bpm / 4;
+    music.step = (music.step + 1) % 64;
   }
-}, 40);
+}, 25);
 
 export const audio = {
-  unlock() { ctxA(); },
+  unlock() { try { ctxA(); setMusicLevel(); } catch { /* no audio */ } },
   play(name, arg) { try { SFX[name] && SFX[name](arg); } catch { /* audio not available */ } },
   setVolume(v) { audioState.vol = v; applyVolume(); },
   setMute(m) { audioState.mute = m; applyVolume(); },
-  beatStart() { try { ctxA(); audioState.beatOn = true; audioState.next = AC.currentTime + .05; audioState.step = 0; audioState.bpm = 118; } catch { /* no audio */ } },
-  beatStop() { audioState.beatOn = false; },
-  setBpm(b) { audioState.bpm = b; }
+  // 'menu' (start page, game over), 'intro' (quiet under the intro), 'game' (full, speeds up), 'off'
+  music(mode) {
+    if (mode === music.mode) return;
+    music.mode = mode;
+    if (mode === 'game' || mode === 'menu') music.bpm = mode === 'game' ? 120 : 118;
+    if (mode === 'game') music.step = 0;            // start the loop on a clean downbeat at GO
+    setMusicLevel();
+  },
+  setMusicOn(on) { music.on = on; setMusicLevel(); },
+  setBpm(b) { music.bpm = b; }
 };

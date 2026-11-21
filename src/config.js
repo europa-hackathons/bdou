@@ -64,7 +64,7 @@ export const CONFIG = {
   },
 
   durations: [30, 45, 60, 90],
-  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true }
+  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true }
 };
 
 export const BOX_TYPES = ['maki', 'sashimi', 'avo'];

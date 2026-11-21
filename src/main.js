@@ -36,6 +36,7 @@ const app = {
   setSetting(key, value) {
     S[key] = value; saveSettings(S);
     if (key === 'lang') { t = translator(S.lang); ui.applyLang(); }
+    if (key === 'music') { audio.setMusicOn(!!value); musicHint(); }
     if (key === 'vol') { S.mute = false; audio.setVolume(S.vol); audio.setMute(false); ui.setMuteIcon(false); }
     if (key === 'cam' && !value && cam.source && cam.source.kind === 'webcam') { closeSource(cam.source); cam.source = null; clearCamera(inp); }
   }
@@ -43,6 +44,13 @@ const app = {
 const ui = createUI(app);
 const debug = createDebug({ onRecord: recordTestClip, onLoadClip: useClip, onWebcam: useWebcam, onExport: exportLandmarks });
 ui.applyLang(); ui.setMuteIcon(S.mute); audio.setVolume(S.vol); audio.setMute(S.mute);
+// disco music starts on the start page; browsers only allow sound after the first tap / click / key
+audio.setMusicOn(S.music !== false); audio.music('menu');
+let soundUnlocked = false;
+function musicHint() { document.getElementById('musicHint').classList.toggle('hidden', soundUnlocked || S.music === false); }
+function unlockSound() { audio.unlock(); if (!soundUnlocked) { soundUnlocked = true; musicHint(); } }
+musicHint();
+document.getElementById('musicHint').onclick = unlockSound;
 
 /* ---------------- layout ---------------- */
 function fit() {
@@ -59,7 +67,7 @@ const toLogical = e => { const b = stage.getBoundingClientRect(); return [(e.cli
 const currentMode = () => (run.game ? run.game.mode : run.pendingMode);
 const pointerActive = e => run.screen === 'game' && !(e.target.closest && e.target.closest('#bar, #debugPanel'));
 addEventListener('pointerdown', e => {
-  audio.unlock();
+  unlockSound();
   if (run.screen === 'intro' && !(e.target.closest && e.target.closest('#bar, #debugPanel'))) { skipIntro(run.intro); return; }
   if (!pointerActive(e) || e.pointerType === 'mouse') return;
   const [x, y] = toLogical(e); pointerMove(inp, 't' + e.pointerId, 'touch', x, y, nowMs(), currentMode());
@@ -73,6 +81,7 @@ addEventListener('pointermove', e => {
 const endTouch = e => { if (e.pointerType !== 'mouse') pointerEnd(inp, 't' + e.pointerId); };
 addEventListener('pointerup', endTouch); addEventListener('pointercancel', endTouch);
 addEventListener('keydown', e => {
+  unlockSound();
   if ((e.key === 'd' || e.key === 'D') && !ui.entry) { debug.toggle(); return; }
   if (run.screen === 'intro' && e.key !== 'Escape') skipIntro(run.intro);
 });
@@ -125,6 +134,7 @@ const trackingReady = () => !!(cam.tracker && cam.source);
 async function startGame(mode) {
   audio.unlock(); audio.play('click');
   ui.clearResults(); ui.show(null); ui.setQuit(true); wakeLock();
+  audio.music('intro');
   const token = ++run.flow;
   run.pendingMode = mode; run.game = null;
   // the intro plays while the camera and body tracking load in the background
@@ -147,13 +157,13 @@ function startCountdown() {
 }
 function endGame() {
   const g = run.game;
-  audio.beatStop(); audio.play('over');
+  audio.music('menu'); audio.play('over');
   run.screen = 'over'; ui.setQuit(false);
   ui.gameOver(g.lanes.map((l, i) => ({ player: i, ...gameStats(l) })), g.mode);
 }
 function goMenu() {
   run.flow++; if (run.introEnd) { run.introEnd(); run.introEnd = null; }
-  audio.beatStop(); run.game = null; run.screen = 'menu';
+  audio.music('menu'); run.game = null; run.screen = 'menu';
   ui.clearResults(); ui.setQuit(false); ui.show('menu');
 }
 let wl = null;
@@ -169,7 +179,7 @@ function handleEvents(events) {
     else if (e.type === 'miss') audio.play('miss');
     else if (e.type === 'tick') audio.play('tick');
     else if (e.type === 'faster') audio.play('faster');
-    else if (e.type === 'go') { audio.play('go'); audio.beatStart(); }
+    else if (e.type === 'go') { audio.play('go'); audio.music('game'); }
   }
   renderEvents(R, events, run.game, t);
   if (events.some(e => e.type === 'over')) endGame();
@@ -222,7 +232,7 @@ function frame(now) {
       run.acc -= STEP;
       handleEvents(stepGame(run.game, STEP, hands));
     }
-    if (run.game) audio.setBpm(118 + Math.min(32, run.game.step * 1.2));
+    if (run.game && run.game.phase === 'play') audio.setBpm(120 + Math.min(24, run.game.step * 1.2));
   }
 
   renderTick(R, dt);
