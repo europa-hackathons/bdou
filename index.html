@@ -145,6 +145,7 @@ input[type=checkbox]{width:28px;height:28px}
       <label><span data-i18n="diff"></span><select id="diffSel"></select></label>
       <label><span data-i18n="calm"></span><input type="checkbox" id="calmChk"></label>
       <label><span data-i18n="useCam"></span><input type="checkbox" id="camChk"></label>
+      <label><span data-i18n="tracking"></span><select id="trkSel"></select></label>
       <label><span data-i18n="backdrop"></span><input type="checkbox" id="bdChk"></label>
       <label><span data-i18n="zoom"></span><input type="range" id="zoomRange" min="1" max="2.5" step="0.1"></label>
       <div class="row" style="margin-top:20px"><button class="btn" id="setClose" data-i18n="back"></button></div>
@@ -211,6 +212,7 @@ const T = {
     step1: 'Touch sushi', step2: 'Carry it', step3: 'Match the box',
     back: 'Back', quit: 'Quit', useCam: 'Use camera', zoom: 'Camera zoom (distance)',
     privacy: '🔒 Camera video stays on this device – nothing is uploaded.',
+    tracking: 'Tracking', trk_pose: 'Body (best at 2 m)', trk_hand: 'Hands (close up)',
     ouch: 'NYAA!', stuck: 'STICKY!', reverse: 'REVERSE!', tipWasabi: 'AVOID THE WASABI!', mega: 'MEGA SUSHI!', merge: 'MERGE!', tipMega: 'TIP: two hands + two of the same sushi = MEGA SUSHI!', bin: 'BOBA BIN',
     strawberry: 'Strawberry', matcha: 'Matcha', taro: 'Taro', mango: 'Mango',
     fx_pink: '+100!', fx_green: 'DOUBLE POINTS!', fx_purple: 'SLOW-MO!', fx_orange: '+4 SECONDS!',
@@ -233,6 +235,7 @@ const T = {
     step1: 'Rör sushin', step2: 'Bär den', step3: 'Rätt låda',
     back: 'Tillbaka', quit: 'Avsluta', useCam: 'Använd kamera', zoom: 'Kamerazoom (avstånd)',
     privacy: '🔒 Kamerabilden stannar på din enhet – inget laddas upp.',
+    tracking: 'Spårning', trk_pose: 'Kropp (bäst på 2 m)', trk_hand: 'Händer (nära)',
     ouch: 'MIAU!', stuck: 'KLISTRIGT!', reverse: 'OMVÄNT!', tipWasabi: 'UNDVIK WASABIN!', mega: 'MEGASUSHI!', merge: 'SLÅ IHOP!', tipMega: 'TIPS: två händer + två likadana sushi = MEGASUSHI!', bin: 'BUBBELTE-LÅDA',
     strawberry: 'Jordgubb', matcha: 'Matcha', taro: 'Taro', mango: 'Mango',
     fx_pink: '+100!', fx_green: 'DUBBLA POÄNG!', fx_purple: 'SLOW-MO!', fx_orange: '+4 SEKUNDER!',
@@ -256,8 +259,10 @@ const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const S = Object.assign({ lang: (navigator.language || '').toLowerCase().startsWith('sv') ? 'sv' : 'en', dur: 60, vol: 0.6, mute: false, backdrop: true, cam: true, zoom: 1.5, diff: 'normal', calm: false }, LS.get('bdou.settings.v2', {}));
-const saveS = () => LS.set('bdou.settings.v2', S);
+const S = Object.assign({ lang: (navigator.language || '').toLowerCase().startsWith('sv') ? 'sv' : 'en', dur: 60, vol: 0.6, mute: false, backdrop: true, cam: true, zoom: 1.5, diff: 'easy', calm: false, track: 'pose' },
+  (({ lang, vol, mute, backdrop, cam, zoom, calm, dur }) => JSON.parse(JSON.stringify({ lang, vol, mute, backdrop, cam, zoom, calm, dur })))(LS.get('bdou.settings.v2', {})),
+  LS.get('bdou.settings.v3', {}));
+const saveS = () => LS.set('bdou.settings.v3', S);
 const t = k => T[S.lang][k];
 
 const HS_KEY = 'bdou.highscores.v1';
@@ -395,16 +400,18 @@ const BELT_TOP = 255, BELT_H = 96, ITEM_Y = 200, BOX_TOP = 450;
 
 const DIFF = { easy: { sp: .75, space: 1.25 }, normal: { sp: 1, space: 1 }, hard: { sp: 1.2, space: .9 } };
 const dm = () => DIFF[S.diff] || DIFF.normal;
-function beltSpeed(el) { const m = dm().sp; return Math.min(380 * m, 170 * m * (1 + 0.09 * Math.floor(el / 4))); }
+function beltSpeed(el) { const m = dm().sp; return Math.min(360 * m, 150 * m * (1 + 0.07 * Math.floor(el / 4))); }
 // performance guard: on slow machines switch the expensive effects off automatically
 let LOW = false; const perf = { acc: 0, n: 0 };
 const fxOn = () => !(S.calm || LOW);
 
 const laneSz = () => G.lanes.length === 2 ? 1.05 : 1.3; // big: kids play ~2 m away
 function hazardRoll() {
-  if (G.state !== 'play' || G.el < 8) return null;
-  const hl = clamp((G.el - 8) / Math.max(10, G.dur - 8), 0, 1), m = S.diff === 'easy' ? .6 : S.diff === 'hard' ? 1.3 : 1, r = Math.random();
-  const pw = (.07 + .17 * hl) * m, pr = G.el > 16 ? (.05 + .10 * hl) * m : 0;
+  // hazards hold off for a while (25 s on Easy/Normal, 12 s on Hard); no rice piles on Easy
+  const d = S.diff, wStart = d === 'hard' ? 12 : 25, rStart = d === 'easy' ? 1e9 : d === 'hard' ? 20 : 35;
+  if (G.state !== 'play' || G.el < wStart) return null;
+  const hl = clamp((G.el - wStart) / Math.max(10, G.dur - wStart), 0, 1), m = d === 'easy' ? .6 : d === 'hard' ? 1.3 : 1, r = Math.random();
+  const pw = (.06 + .14 * hl) * m, pr = G.el > rStart ? (.05 + .08 * hl) * m : 0;
   return r < pw ? 'wasabi' : r < pw + pr ? 'rice' : null;
 }
 function spawn(lane, li, boba) {
@@ -467,21 +474,44 @@ addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr)
 // standing ~2 m away gets a bigger hand in the detector's input and the cursor lines up with the backdrop.
 const nowS = () => performance.now() / 1000;
 let detCanvas = null, detCtx = null;
+function detCanvasSize(w, h) {
+  if (!detCanvas) { detCanvas = document.createElement('canvas'); detCtx = detCanvas.getContext('2d'); }
+  if (detCanvas.width !== w || detCanvas.height !== h) { detCanvas.width = w; detCanvas.height = h; }
+}
 function detectOnce() {
   const v = tracker.video;
-  if (!tracker.ready || !inGameNow() || !v || v.readyState < 2 || !v.videoWidth) return;
-  const vw = v.videoWidth, vh = v.videoHeight, s = Math.max(W / vw, H / vh) * S.zoom, cw = W / s, ch = H / s;
-  if (!detCanvas) { detCanvas = document.createElement('canvas'); detCanvas.width = 960; detCanvas.height = 540; detCtx = detCanvas.getContext('2d'); }
-  detCtx.drawImage(v, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, 960, 540);
-  let res;
-  try { res = tracker.lm.detectForVideo(detCanvas, performance.now()); } catch { return; }
-  const lms = res.landmarks || [];
-  tracker.dbg = lms.map(l => l.map(q => [(1 - q.x) * W, q.y * H]));
-  const hands = lms.map(l => {
-    // hand centre = average of wrist, palm base and finger bases (stable, big "touch" point); crop is mirrored onto the canvas
-    const pts = [0, 5, 9, 13, 17].map(i => [clamp((1 - l[i].x) * W, 0, W), clamp(l[i].y * H, 0, H)]);
-    return { x: pts.reduce((a, q) => a + q[0], 0) / pts.length, y: pts.reduce((a, q) => a + q[1], 0) / pts.length };
-  }).sort((a, b) => a.x - b.x);
+  if (!tracker.ready || tracker.busy || !inGameNow() || !v || v.readyState < 2 || !v.videoWidth) return;
+  const vw = v.videoWidth, vh = v.videoHeight, s = Math.max(W / vw, H / vh) * S.zoom;
+  let res, hands = [];
+  if (tracker.kind === 'pose') {
+    // Body tracking: run on the whole camera frame (the model needs to see the body), then map with the same zoom as the backdrop.
+    detCanvasSize(640, Math.round(640 * vh / vw));
+    detCtx.drawImage(v, 0, 0, detCanvas.width, detCanvas.height);
+    try { res = tracker.lm.detectForVideo(detCanvas, performance.now()); } catch { return; }
+    const map = q => [W / 2 + (.5 - q.x) * vw * s, H / 2 + (q.y - .5) * vh * s];
+    const lms = res.landmarks || [];
+    tracker.dbg = lms.map(l => l.map(map));
+    for (const l of lms) for (const [w, a, b] of [[15, 17, 19], [16, 18, 20]]) {
+      if ((l[w].visibility ?? 1) < .3) continue;
+      const [wx, wy] = map(l[w]), [ax, ay] = map(l[a]), [bx, by] = map(l[b]);
+      // hand point = a bit past the wrist towards the fingers
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      hands.push({ x: clamp(wx + (mx - wx) * 1.3, 0, W), y: clamp(wy + (my - wy) * 1.3, 0, H) });
+    }
+  } else {
+    // Hand tracking: crop exactly the zoomed part that is shown, so hands are bigger for the detector.
+    const cw = W / s, ch = H / s;
+    detCanvasSize(960, 540);
+    detCtx.drawImage(v, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, 960, 540);
+    try { res = tracker.lm.detectForVideo(detCanvas, performance.now()); } catch { return; }
+    const lms = res.landmarks || [];
+    tracker.dbg = lms.map(l => l.map(q => [(1 - q.x) * W, q.y * H]));
+    hands = lms.map(l => {
+      const pts = [0, 5, 9, 13, 17].map(i => [clamp((1 - l[i].x) * W, 0, W), clamp(l[i].y * H, 0, H)]);
+      return { x: pts.reduce((a, q) => a + q[0], 0) / pts.length, y: pts.reduce((a, q) => a + q[1], 0) / pts.length };
+    });
+  }
+  hands.sort((a, b) => a.x - b.x);
   // match each detected hand to the nearest hand pointer we already track (so a held sushi stays with its hand)
   const live = [...pointers.values()].filter(p => p.hand && !p.dead), used = new Set();
   hands.forEach(h => {
@@ -500,6 +530,24 @@ function scheduleDetect() {
   if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(detectLoop); else setTimeout(detectLoop, 33);
 }
 
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELS = {
+  pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  hand: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
+};
+let VISION = null, FILESET = null;
+async function loadModel(kind) {
+  setLoading(t('loadModel'));
+  if (!VISION) { VISION = await import(MP + '/vision_bundle.mjs'); FILESET = await VISION.FilesetResolver.forVisionTasks(MP + '/wasm'); }
+  const mk = d => kind === 'pose'
+    ? VISION.PoseLandmarker.createFromOptions(FILESET, { baseOptions: { modelAssetPath: MODELS.pose, delegate: d }, runningMode: 'VIDEO', numPoses: 2, minPoseDetectionConfidence: .4, minPosePresenceConfidence: .4, minTrackingConfidence: .4 })
+    : VISION.HandLandmarker.createFromOptions(FILESET, { baseOptions: { modelAssetPath: MODELS.hand, delegate: d }, runningMode: 'VIDEO', numHands: 4, minHandDetectionConfidence: .3, minHandPresenceConfidence: .3, minTrackingConfidence: .3 });
+  let lm; try { lm = await mk('GPU'); } catch { lm = await mk('CPU'); }
+  tracker.busy = true;
+  const old = tracker.lm; tracker.lm = lm; tracker.kind = kind; tracker.dbg = [];
+  if (old && old.close) try { old.close(); } catch {}
+  tracker.busy = false;
+}
 async function initTracker() {
   const v = document.createElement('video');
   v.setAttribute('playsinline', ''); v.muted = true;
@@ -509,16 +557,8 @@ async function initTracker() {
   const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
   v.srcObject = stream; await v.play();
   tracker.video = v;
-  setLoading(t('loadModel'));
-  const BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
   try {
-    const V = await import(BASE + '/vision_bundle.mjs');
-    const fs = await V.FilesetResolver.forVisionTasks(BASE + '/wasm');
-    const mk = d => V.HandLandmarker.createFromOptions(fs, {
-      baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: d },
-      runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: .3, minHandPresenceConfidence: .3, minTrackingConfidence: .3
-    });
-    try { tracker.lm = await mk('GPU'); } catch { tracker.lm = await mk('CPU'); }
+    await loadModel(S.track);
     tracker.ready = true; scheduleDetect();
   } catch (err) {
     stream.getTracks().forEach(tr => tr.stop()); v.remove(); tracker.video = null;
@@ -541,6 +581,9 @@ async function startGame(mode) {
       toast(t(err && err.name === 'NotAllowedError' ? 'camDenied' : err && err.name === 'NotFoundError' ? 'camNone' : 'camErr'), 7000);
     }
     show('loading', false);
+  } else if (tracker.ready && tracker.kind !== S.track) {
+    try { await loadModel(S.track); calibMode = 0; } catch (err) { console.warn('Model switch failed', err); }
+    show('loading', false);
   }
   if (!tracker.ready && !tracker.failed) toast(t('mouseMode'), 5000);
   releaseAll(); items = []; parts = []; pops = []; cats = [];
@@ -552,7 +595,7 @@ async function startGame(mode) {
   else beginCountdown();
 }
 let calibMode = 0;
-function beginCountdown() { show('calib', false); G.state = 'countdown'; G.cd = 3.2; G.lastCd = 4; G.tip = false; G.hazTip = false; G.dir = 1; G.dirV = 1; G.revWarned = false; G.nextRev = S.diff === 'easy' ? 24 : S.diff === 'hard' ? 13 : 18; cats = []; }
+function beginCountdown() { show('calib', false); G.state = 'countdown'; G.cd = 3.2; G.lastCd = 4; G.tip = false; G.hazTip = false; G.dir = 1; G.dirV = 1; G.revWarned = false; G.nextRev = S.diff === 'easy' ? 32 : S.diff === 'hard' ? 16 : 25; cats = []; }
 function buildChips() {
   $('calibChips').innerHTML = G.lanes.map((l, i) => `<span class="chip" id="chip${i}" style="${G.lanes.length === 2 ? 'border-color:' + (i ? 'var(--cyan)' : 'var(--pink)') : ''}"></span>`).join('');
 }
@@ -567,7 +610,7 @@ function toMenu() {
 function letGo(p) {
   const it = p.held; if (!it) return;
   p.held = null; it.p = null;
-  if (it.mega && G.state === 'play') { it.st = 'float'; it.ft = 4; } else it.st = 'belt';
+  if (G.state === 'play' && it.type !== 'boba') { it.st = 'float'; it.ft = it.mega ? 4 : 1.5; it.ft0 = it.ft; it.fy = it.y; } else it.st = 'belt';
 }
 function releaseAll() { for (const p of pointers.values()) letGo(p); }
 
@@ -698,7 +741,7 @@ function update(dt) {
   if (perf.acc > 3) { if (perf.acc / perf.n > 1 / 28 && !LOW && G.state !== 'menu') { LOW = true; toast('⚡ Performance mode'); } perf.acc = perf.n = 0; }
 
   // who is currently visible? (hands or mouse / touch pointers, per lane)
-  const seen = G.lanes.map(() => false);
+  const seen = G.lanes.map(() => false); G.seen = seen;
   for (const p of pointers.values()) if (!p.dead && (!p.hand || nowS() - p.seen < .6)) seen[laneAt(p.x)] = true;
 
   // state machine
@@ -754,17 +797,20 @@ function update(dt) {
       { const li = laneAt(p.x);
         for (const it of items) {
           if (!HAZ[it.type] || it.st !== 'belt' || it.lane !== li) continue;
-          if (Math.hypot(it.x - p.x, it.y - p.y) < 68 * it.sz) { if (it.type === 'wasabi') hitWasabi(it, p); else if (!p.held && clock >= (p.stuck || 0)) hitRice(it, p); }
+          if (Math.hypot(it.x - p.x, it.y - p.y) < (it.type === 'wasabi' ? 45 : 60) * it.sz) { if (it.type === 'wasabi') hitWasabi(it, p); else if (!p.held && clock >= (p.stuck || 0)) hitRice(it, p); }
         } }
       // touching a sushi = grabbing it
       if (!p.held && clock >= (p.stuck || 0)) {
         const li = laneAt(p.x); let best = null, bd = 1e9;
         for (const it of items) {
           if ((it.st !== 'belt' && it.st !== 'float') || it.lane !== li || HAZ[it.type]) continue;
-          const d = Math.hypot(it.x - p.x, it.y - p.y);
-          if (d < 80 * it.sz && d < bd) { best = it; bd = d; }
+          // camera hands get a bigger reach and we also test where the sushi was ~0.18 s ago (camera lag)
+          const lag = p.hand ? .18 : 0, vx = it.st === 'belt' ? G.speed * G.dirV * (clock < G.lanes[li].slowUntil ? .45 : 1) : 0;
+          const dx = Math.min(Math.abs(it.x - p.x), Math.abs(it.x + vx * lag - p.x)), dy = Math.abs(it.y - p.y);
+          const rx = (p.hand ? 115 : 80) * it.sz, ry = (p.hand ? 120 : 80) * it.sz;
+          if (dx < rx && dy < ry && dx + dy < bd) { best = it; bd = dx + dy; }
         }
-        if (best) { best.st = 'held'; best.p = p; p.held = best; sfx.grab(); burst(best.x, best.y, 6, ['#fff', '#ffe14d'], 220); }
+        if (best) { best.st = 'held'; best.p = p; best.heldAt = clock; p.held = best; sfx.grab(); burst(best.x, best.y, 6, ['#fff', '#ffe14d'], 220); }
       }
       if (p.held) {
         const it = p.held, lane = G.lanes[it.lane];
@@ -774,7 +820,7 @@ function update(dt) {
           // boba only goes into the special bin above the belt
           it.y = Math.min(it.y, BOX_TOP - 40);
           if (lane.bin && !lane.bin.out && it.y < BIN_Y + BIN_H + 40 && Math.abs(it.x - binX(lane)) < 140) { p.held = null; depositBoba(it, lane); }
-        } else if (it.y >= BOX_TOP - 10) { p.held = null; drop(it, p); } // carried into the box area = dropped in
+        } else if (it.y >= BOX_TOP - 10 || (p.hand && clock - (it.heldAt || 0) > .25 && p.y >= BELT_TOP + BELT_H + 55)) { p.held = null; drop(it, p); } // moved below the belt = dropped in
       }
     } else if (p.held) letGo(p);
     if (p.dead) { letGo(p); if (p.el) p.el.remove(); pointers.delete(id); }
@@ -802,8 +848,9 @@ function update(dt) {
         }
       }
     } else if (it.st === 'float') {
-      it.ft -= dt; it.y += (ITEM_Y + 120 + Math.sin(it.ph) * 6 - it.y) * Math.min(1, dt * 4); it.rot = Math.sin(it.ph * .7) * .06; it.scale = 1.1;
-      if (it.ft <= 0) { // time's up: deliver it to its own box so a merged mega sushi is never lost
+      it.ft -= dt; it.y += ((it.fy || ITEM_Y) + Math.sin(it.ph) * 6 - it.y) * Math.min(1, dt * 4); it.rot = Math.sin(it.ph * .7) * .06; it.scale = 1.1;
+      if (it.ft <= 0 && !it.mega) it.st = 'belt'; // nobody came back for it: back onto the belt
+      else if (it.ft <= 0) { // time's up: deliver it to its own box so a merged mega sushi is never lost
         const bw = lane.w / 3, bi = Math.max(0, BOXES.findIndex(b => b.type === it.type));
         it.x = lane.x0 + bw * bi + bw / 2; drop(it, null);
       }
@@ -970,7 +1017,7 @@ function drawItem(it) {
   else { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, s * .46, s * .36, s * .08, 0, 0, 7); ctx.fill(); }
   ctx.drawImage(img, -s / 2, -s / 2, s, s);
   if (it.type === 'boba' || it.mega) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .25 + .2 * Math.sin(clock * 10); ctx.drawImage(img, -s / 2, -s / 2, s, s); }
-  if (it.st === 'float') { ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(0, 0, s * .58, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, it.ft) / 4); ctx.stroke(); }
+  if (it.st === 'float') { ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(0, 0, s * .58, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, it.ft) / (it.ft0 || 4)); ctx.stroke(); }
   if (it.mega) { ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = it.a; ctx.shadowBlur = 0; ctx.rotate(-it.rot); ctx.font = `${s * .4}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('👑', 0, -s * .5); }
   ctx.restore();
 }
@@ -1034,6 +1081,7 @@ function drawHUD() {
     const col = multi ? (i ? '#2de2e6' : '#ff5fb0') : '#ffe14d', right = i === 1;
     const x = right ? l.x0 + l.w - 20 - 250 : l.x0 + 20;
     pill(x, 12, 250, 56, col);
+    if (tracker.ready && G.seen) { const dx = right ? x - 16 : x + 266; ctx.fillStyle = G.seen[i] ? '#3ecf6a' : '#ff4d4d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(dx, 40, 10, 0, 7); ctx.fill(); ctx.stroke(); }
     ctx.textBaseline = 'middle'; ctx.fillStyle = col; ctx.font = `700 18px ${FONT}`; ctx.textAlign = 'left';
     ctx.fillText(multi ? t('p') + (i + 1) : t('score'), x + 20, 40);
     ctx.fillStyle = '#fff'; ctx.font = `700 34px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText(l.score, x + 232, 42);
@@ -1150,6 +1198,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-title]').forEach(e => e.title = t(e.dataset.i18nTitle));
   document.querySelectorAll('[data-lang]').forEach(e => e.classList.toggle('on', e.dataset.lang === S.lang));
   [...$('diffSel').options].forEach(o => o.textContent = t(o.value));
+  [...$('trkSel').options].forEach(o => o.textContent = t('trk_' + o.value));
   if (G.state === 'calib') buildChips();
   $('kDel').textContent = t('del'); $('kOk').textContent = t('ok');
   if (G.state === 'over') {
@@ -1200,6 +1249,8 @@ $('fsBtn').addEventListener('click', () => { try { document.fullscreenElement ? 
 ['easy', 'normal', 'hard'].forEach(k => { const o = document.createElement('option'); o.value = k; $('diffSel').appendChild(o); });
 $('diffSel').value = S.diff; $('diffSel').addEventListener('change', e => { S.diff = e.target.value; saveS(); });
 $('calmChk').checked = S.calm; $('calmChk').addEventListener('change', e => { S.calm = e.target.checked; saveS(); });
+['pose', 'hand'].forEach(k => { const o = document.createElement('option'); o.value = k; $('trkSel').appendChild(o); });
+$('trkSel').value = S.track; $('trkSel').addEventListener('change', e => { S.track = e.target.value; saveS(); });
 $('camChk').checked = S.cam; $('camChk').addEventListener('change', e => { S.cam = e.target.checked; saveS(); });
 $('zoomRange').value = S.zoom; $('zoomRange').addEventListener('input', e => { S.zoom = +e.target.value; saveS(); });
 $('bdChk').checked = S.backdrop; $('bdChk').addEventListener('change', e => { S.backdrop = e.target.checked; saveS(); });
