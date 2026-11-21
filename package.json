@@ -1,0 +1,10 @@
+{
+  "name": "bdou",
+  "private": true,
+  "type": "module",
+  "description": "BDOU – kawaii disco sushi train. Webcam kids' game, built into one index.html.",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/*.test.js"
+  }
+}
