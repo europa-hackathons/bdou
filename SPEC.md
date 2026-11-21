@@ -131,6 +131,16 @@ Pressing 1P or 2P plays a short anime-style intro before calibration / countdown
 
 Characters: Maki-chan, Sashimi-kun, Avo-san, Tamago-chan, Onigiri-kun (`ROSTER` in `config.js`). Timelines and sound cues are in `intro.js`, drawing in `render.js`.
 
+**Animation style (Settings, v1.2, beta):** *Kawaii* (default) is the style above. *Anime* swaps in a more detailed, cinematic look with cute, sparkly shōjo-style eyes (big bright irises, star highlights, soft brows, open smiles, pink blush; never angry or scary). It has its own **1P transformation** (5.8 s): a sparkling eye opens, a glowing silhouette spins in a column of light with ribbons, the chef outfit lands piece by piece, then the character bursts into colour for a hero pose with 変身, "SUSHI CHEF, TRANSFORM!" and "READY!". It also has its own **2P face-off** (5.8 s):
+
+1. Extreme close-ups of both fighters' sparkly eyes opening, one above the other, with lightning between.
+2. A black-and-white impact frame with silhouettes, manga speed lines and ドン!.
+3. A split-screen face-off with a slow camera push-in: cel-shaded characters (ink outline, hard shadow, rim light, sparkly anime eyes, happy faces), flame auras, screentone, sakura petals, and brush name plates with the Japanese names (巻きちゃん, 刺身くん, アボさん, たまごちゃん, おにぎりくん).
+4. A VS slam over a faint 対.
+5. ゴゴゴ rising up the sides, then "LET'S SORT!".
+
+In-game moments (combo cut-ins, manga sound effects) are possible next steps if the style is kept. Code: `anime.js`; shared drawing helpers: `draw.js`.
+
 ---
 
 ## 7. Input model (the contract)

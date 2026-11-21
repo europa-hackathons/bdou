@@ -31,3 +31,20 @@ test('skipping jumps to the end without replaying sounds, but not on the startin
   assert.deepEqual(tickIntro(it, 1), []);
   assert.ok(it.done);
 });
+
+test('anime style gives its own 2P face-off and 1P transformation', () => {
+  const a = createIntro('2p', Math.random, 'anime');
+  assert.equal(a.kind, '2p-anime');
+  assert.equal(a.chars.length, 2);
+  assert.notEqual(a.chars[0].key, a.chars[1].key);
+  const heard = [];
+  while (!a.done) heard.push(...tickIntro(a, 1 / 60));
+  assert.deepEqual(heard, a.cues.map(c => c[1]));
+  const one = createIntro('1p', Math.random, 'anime');
+  assert.equal(one.kind, '1p-anime'); assert.equal(one.chars.length, 1);
+  const heard1 = [];
+  while (!one.done) heard1.push(...tickIntro(one, 1 / 60));
+  assert.deepEqual(heard1, one.cues.map(c => c[1]));
+  assert.equal(createIntro('1p').kind, '1p');
+  assert.equal(createIntro('2p').kind, '2p', 'kawaii stays the default');
+});

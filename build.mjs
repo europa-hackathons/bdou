@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 // dependency order
-const MODULES = ['util', 'config', 'i18n', 'storage', 'audio', 'game', 'input', 'tracker', 'camera', 'sprites', 'intro', 'render', 'debug', 'ui', 'main'];
+const MODULES = ['util', 'config', 'i18n', 'storage', 'audio', 'game', 'input', 'tracker', 'camera', 'sprites', 'draw', 'intro', 'anime', 'render', 'debug', 'ui', 'main'];
 
 const template = readFileSync('src/index.template.html', 'utf8');
 const seen = new Map();
