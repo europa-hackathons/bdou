@@ -40,6 +40,11 @@ html,body{margin:0;height:100%;background:#1a0b3a;overflow:hidden;font-family:va
 .steps b{font-weight:700}
 .menulink{font:700 24px var(--font);color:#fff;background:transparent;border:3px solid rgba(255,255,255,.7);border-radius:999px;padding:8px 24px;cursor:pointer}
 .menulink:hover{background:rgba(255,255,255,.2)}
+.cambtn{font-size:22px;margin-top:4px;border-color:#7dff9b;background:rgba(62,207,106,.28)}
+.cambtn[data-state=ask]{animation:hintpulse 1.4s ease-in-out infinite}
+.cambtn[data-state=waking]{opacity:.85;cursor:default}
+.cambtn[data-state=ready]{background:#3ecf6a;color:#06301a;border-color:#fff}
+.cambtn[data-state=blocked]{border-color:#ff8f8f;background:rgba(255,77,77,.3)}
 .musichint{position:absolute;top:22px;right:26px;font-size:20px;background:rgba(255,95,176,.35);animation:hintpulse 1.2s ease-in-out infinite}
 @keyframes hintpulse{50%{transform:scale(1.08);box-shadow:0 0 22px rgba(255,225,77,.8)}}
 .panel{background:rgba(43,27,74,.9);border:5px solid #fff;border-radius:34px;padding:26px 40px;box-shadow:0 0 40px rgba(255,95,176,.6)}
@@ -110,6 +115,7 @@ input[type=checkbox]{width:28px;height:28px}
       <button class="btn pink mid" id="play1" data-i18n="play1"></button>
       <button class="btn cyan mid" id="play2" data-i18n="play2"></button>
     </div>
+    <button class="menulink cambtn hidden" id="camBtn"></button>
     <div class="steps">
       <span>👋 <b data-i18n="step1"></b></span><i>›</i>
       <span>🍣 <b data-i18n="step2"></b></span><i>›</i>

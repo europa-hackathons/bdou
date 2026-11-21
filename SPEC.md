@@ -111,6 +111,7 @@ Menu ──► (first time) Calibration ──► Countdown 3-2-1 ──► Play
 | Screen | Controlled by | Notes |
 |---|---|---|
 | Menu | Mouse / touch / keyboard | Title, a big clear tagline, compact 1P and 2P buttons, a three-step hint, High Scores, Settings. Clean, no clutter behind it. |
+| Camera permission | Start page | Browsers always need the player to allow the camera once (Chrome then remembers it per site). If it is already allowed, the camera and body tracking start in the background on the start page, so play starts instantly. If not, a pulsing "📷 Allow the camera…" button asks up front; if blocked, "Camera blocked – tap for help" explains how to unblock it. Unblocking in Chrome is picked up automatically. |
 | Settings | Mouse / touch / keyboard | Game time, difficulty, volume, camera on/off, camera zoom, show camera behind game. |
 | Calibration | Camera | Live mirrored video plus tracked body points. One chip per player turns green when seen. Auto-continues once every player has been seen for 1 s, or press Start. |
 | Countdown | — | 3-2-1-GO with a short animated "touch, carry, drop" demo. |

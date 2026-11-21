@@ -35,10 +35,11 @@ const app = {
   toggleMute: () => { S.mute = !S.mute; saveSettings(S); audio.unlock(); audio.setMute(S.mute); ui.setMuteIcon(S.mute); },
   setSetting(key, value) {
     S[key] = value; saveSettings(S);
-    if (key === 'lang') { t = translator(S.lang); ui.applyLang(); }
+    if (key === 'lang') { t = translator(S.lang); ui.applyLang(); refreshCamUI(); }
     if (key === 'music') { audio.setMusicOn(!!value); musicHint(); }
     if (key === 'vol') { S.mute = false; audio.setVolume(S.vol); audio.setMute(false); ui.setMuteIcon(false); }
     if (key === 'cam' && !value && cam.source && cam.source.kind === 'webcam') { closeSource(cam.source); cam.source = null; clearCamera(inp); }
+    if (key === 'cam') checkCamera();
   }
 };
 const ui = createUI(app);
@@ -87,7 +88,13 @@ addEventListener('keydown', e => {
 });
 
 /* ---------------- camera + tracking ---------------- */
-async function ensureTracking(quiet = false) {
+// Single-flight: a background warm-up and pressing play share one camera / model start-up.
+function ensureTracking(quiet = false) {
+  if (!cam.pending) cam.pending = startTracking(quiet).finally(() => { cam.pending = null; refreshCamUI(); });
+  refreshCamUI();
+  return cam.pending;
+}
+async function startTracking(quiet) {
   try {
     if (!cam.source) { if (!quiet) ui.loading(t('loadCam')); setSource(await openWebcam()); }
     if (!cam.tracker || cam.tracker.kind !== S.track) {
@@ -98,7 +105,7 @@ async function ensureTracking(quiet = false) {
     }
   } catch (err) {
     console.warn('Camera / tracking unavailable', err);
-    cam.failed = true;
+    cam.failed = true; cam.lastError = err && err.name;
     ui.toast(t(err && err.name === 'NotAllowedError' ? 'camDenied' : err && err.name === 'NotFoundError' ? 'camNone' : 'camErr'), 7000);
   }
 }
@@ -265,4 +272,44 @@ function frame(now) {
 requestAnimationFrame(n => { last = n; requestAnimationFrame(frame); });
 
 // handy for testing in the browser console
-window.__bdou = { run, S, inp, cam, R, startGame, ui, setSource, detectOnce };
+/* ---------------- camera permission on the start page ---------------- */
+// Browsers always need the player to allow the camera once. If it is already allowed we switch the camera and
+// tracking on in the background right away; otherwise a friendly button asks before anyone presses play.
+const camBtn = document.getElementById('camBtn');
+let camPerm = 'unknown', camReadyFlash = false;
+function refreshCamUI() {
+  let state = 'ask';
+  if (!S.cam || cam.lastError === 'NotFoundError') state = 'hidden';
+  else if (trackingReady()) state = camReadyFlash ? 'ready' : 'hidden';
+  else if (cam.pending) state = 'waking';
+  else if (camPerm === 'denied' || cam.lastError === 'NotAllowedError') state = 'blocked';
+  camBtn.dataset.state = state;
+  camBtn.classList.toggle('hidden', state === 'hidden');
+  camBtn.textContent = t({ ask: 'camAsk', waking: 'camWaking', ready: 'camReady', blocked: 'camBlocked' }[state] || 'camAsk');
+}
+function warmCamera() {
+  cam.failed = false; cam.lastError = null;
+  ensureTracking(true).then(() => {
+    if (!trackingReady()) return;
+    camReadyFlash = true; refreshCamUI();
+    setTimeout(() => { camReadyFlash = false; refreshCamUI(); }, 2500);
+  });
+}
+camBtn.onclick = () => {
+  unlockSound(); audio.play('click');
+  if (camBtn.dataset.state === 'blocked') ui.toast(t('camHelp'), 10000);
+  else if (camBtn.dataset.state === 'ask') warmCamera();
+};
+async function checkCamera() {
+  if (!S.cam) { refreshCamUI(); return; }
+  try {
+    const st = await navigator.permissions.query({ name: 'camera' });
+    camPerm = st.state;
+    st.onchange = () => { camPerm = st.state; if (st.state === 'granted' && !trackingReady()) warmCamera(); refreshCamUI(); };
+  } catch { camPerm = 'unknown'; }       // older browsers: just show the button
+  if (camPerm === 'granted' && !trackingReady()) warmCamera();
+  refreshCamUI();
+}
+checkCamera();
+
+window.__bdou = { run, S, inp, cam, R, startGame, ui, setSource, detectOnce, checkCamera, refreshCamUI };
