@@ -44,6 +44,12 @@ export function renderEvents(r, events, game, t) {
       burst(r, e.x, e.y, 6, ['#fff', '#ffe14d'], 220);
     } else if (e.type === 'miss') {
       if (game && game.lanes[e.lane] && game.lanes[e.lane].combo === 0) popText(r, t('miss'), e.x, e.y, '#ff9f9f', 36);
+    } else if (e.type === 'reverse-warn') {
+      popText(r, '⇄ ' + t('reverse'), W / 2, 300, '#ff6b6b', 66);
+    } else if (e.type === 'reverse') {
+      r.shake = Math.max(r.shake, 10);
+      const arrows = e.dir > 0 ? '◀◀◀' : '▶▶▶';
+      for (const l of game ? game.lanes : []) popText(r, arrows, l.x0 + l.w / 2, CONFIG.layout.beltTop + CONFIG.layout.beltH / 2, '#ffe14d', game.mode === 2 ? 46 : 60);
     } else if (e.type === 'faster') {
       popText(r, t('faster'), W / 2, 330, '#2de2e6', 60);
     } else if (e.type === 'go') {
@@ -116,7 +122,7 @@ function drawBackground(r, view, forceVideo) {
   discoBall(r, 300, 48, 34); discoBall(r, 980, 48, 34);
 }
 
-function drawBelt(r, dist) {
+function drawBelt(r, dist, warn = false) {
   const c = r.ctx, L = CONFIG.layout;
   c.fillStyle = '#2b1b4a'; c.fillRect(-20, L.beltTop, W + 40, L.beltH);
   c.save(); c.beginPath(); c.rect(-20, L.beltTop + 6, W + 40, L.beltH - 12); c.clip();
@@ -126,7 +132,7 @@ function drawBelt(r, dist) {
     c.beginPath(); c.moveTo(x, L.beltTop + L.beltH); c.lineTo(x + 24, L.beltTop); c.lineTo(x + 48, L.beltTop); c.lineTo(x + 24, L.beltTop + L.beltH); c.fill();
   }
   c.restore();
-  c.lineWidth = 6; c.strokeStyle = `hsl(${(r.clock * 120) % 360},100%,65%)`;
+  c.lineWidth = warn ? 9 : 6; c.strokeStyle = warn && Math.floor(r.clock * 7) % 2 ? '#ff3b3b' : `hsl(${(r.clock * 120) % 360},100%,65%)`; // red flashing edges = reversal coming
   if (!r.low) { c.shadowColor = c.strokeStyle; c.shadowBlur = 16; }
   c.beginPath(); c.moveTo(0, L.beltTop); c.lineTo(W, L.beltTop); c.moveTo(0, L.beltTop + L.beltH); c.lineTo(W, L.beltTop + L.beltH); c.stroke(); c.shadowBlur = 0;
   for (let x = 20; x < W; x += 60) { c.fillStyle = `hsl(${(x + r.clock * 200) % 360},100%,70%)`; c.beginPath(); c.arc(x, L.beltTop + L.beltH + 14, 5, 0, 7); c.fill(); }
@@ -292,7 +298,7 @@ export function renderFrame(r, view) {
       const fx = two ? l.x0 - 8 : 0, fw = two ? l.w + 16 : W;
       c.save();
       if (two) { rrect(c, fx, 4, fw, H - 8, 26); c.clip(); c.fillStyle = 'rgba(20,8,50,.35)'; c.fillRect(fx, 0, fw, H); }
-      drawBelt(r, g.beltDist);
+      drawBelt(r, g.beltDist, g.revWarned);
       const hover = [0, 0, 0];
       for (const it of g.items) if (it.lane === li && it.st === 'held' && it.dropCol >= 0) hover[it.dropCol] = Math.max(hover[it.dropCol], .05 + it.dropT / (CONFIG.interaction.dropDwellMs / 1000));
       drawBoxes(r, l, li, g.mode, view.t, hover);

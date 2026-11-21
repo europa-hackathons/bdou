@@ -159,7 +159,7 @@ async function startGame(mode) {
 function startCountdown() {
   const mode = run.pendingMode;
   run.calibratedMode = trackingReady() ? mode : run.calibratedMode;
-  run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, seed: (Date.now() & 0x7fffffff) });
+  run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, reverse: S.reverse !== false, seed: (Date.now() & 0x7fffffff) });
   run.acc = 0; run.screen = 'game'; ui.show(null);
 }
 function endGame() {
@@ -182,6 +182,8 @@ function handleEvents(events) {
     if (e.type === 'grab') audio.play('grab');
     else if (e.type === 'correct') audio.play(e.mega ? 'mega' : e.milestone ? 'combo' : 'good', e.combo);
     else if (e.type === 'merge') audio.play('mega');
+    else if (e.type === 'reverse-warn') audio.play('warn');
+    else if (e.type === 'reverse') audio.play('reverse');
     else if (e.type === 'wrong') audio.play('wrong');
     else if (e.type === 'miss') audio.play('miss');
     else if (e.type === 'tick') audio.play('tick');

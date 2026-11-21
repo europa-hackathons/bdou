@@ -46,6 +46,8 @@ const SFX = {
   chime() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, .35, 'sine', .13, i * .045)); },
   fanfare() { [[523, 0], [659, 0], [784, 0], [1047, .18], [1319, .32]].forEach(([f, at]) => { tone(f, .5, 'square', .1, at); tone(f / 2, .5, 'triangle', .12, at); }); },
   thunder() { noiseSweep(1.4, .6, 0, 'lowpass', 1800, 120); tone(70, 1.1, 'sawtooth', .22, 0, 32); },
+  warn() { tone(880, .1, 'square', .16); tone(880, .1, 'square', .16, .18); tone(880, .1, 'square', .16, .36); },
+  reverse() { tone(420, .35, 'sawtooth', .18, 0, 110); tone(210, .35, 'square', .1, .05, 80); noiseSweep(.4, .25, 0, 'bandpass', 2500, 400); },
   rumble() { tone(55, 1.2, 'sawtooth', .18, 0, 48); tone(58, 1.2, 'square', .08, .05, 50); noiseSweep(1.2, .2, 0, 'lowpass', 300, 120); },
   vs() { tone(110, .5, 'square', .3, 0, 55); tone(220, .4, 'sawtooth', .16); noiseSweep(.35, .45, 0, 'lowpass', 3000, 200); },
 
