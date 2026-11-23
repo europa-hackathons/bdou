@@ -228,7 +228,7 @@ Workflow:
 - Body and hand tracking: [MediaPipe Tasks Vision](https://developers.google.com/mediapipe) by Google.
 - Font: [Fredoka](https://fonts.google.com/specimen/Fredoka) via Google Fonts.
 - All characters, graphics, music and sound effects are made in code (SVG, Canvas and the Web Audio API).
-- Created by: Olivia, Mia, Dina, Uma, and Bodhi under Jeff's supervision
+- Created by: Olivia, Mila, Dina, Uma, and Bodhi under Jeff's supervision
 
 ## License
 
