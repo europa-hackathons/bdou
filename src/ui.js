@@ -26,6 +26,18 @@ export function createUI(app) {
   byId('animSel').value = S.anim || 'kawaii'; byId('animSel').onchange = e => app.setSetting('anim', e.target.value);
   byId('revChk').checked = S.reverse !== false; byId('revChk').onchange = e => app.setSetting('reverse', e.target.checked);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
+  // camera list: "Auto (prefer webcam)" plus every camera found
+  ui.cameras = [];
+  ui.setCameras = (list, current) => {
+    ui.cameras = list || [];
+    const sel = byId('camSel'), t = app.t;
+    sel.innerHTML = '';
+    const add = (value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); };
+    add('auto', t('camAuto'));
+    ui.cameras.forEach((d, i) => add(d.deviceId, d.label || t('camN').replace('{n}', i + 1)));
+    sel.value = ui.cameras.some(d => d.deviceId === current) ? current : 'auto';
+  };
+  byId('camSel').onchange = e => app.setSetting('camId', e.target.value);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);
   byId('diffSel').onchange = e => app.setSetting('diff', e.target.value);
@@ -90,6 +102,7 @@ export function createUI(app) {
     [...byId('diffSel').options].forEach(o => { o.textContent = t(o.value); });
     [...byId('trkSel').options].forEach(o => { o.textContent = t('trk_' + o.value); });
     [...byId('animSel').options].forEach(o => { o.textContent = t('anim_' + o.value); });
+    ui.setCameras(ui.cameras, app.settings.camId || 'auto');
     byId('kDel').textContent = t('del'); byId('kOk').textContent = t('ok');
     byId('goTitle').textContent = t('gameover');
     if (ui.results) renderScores();

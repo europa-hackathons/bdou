@@ -96,6 +96,7 @@ Open ⚙️ **Settings** from the top bar or the start page.
 | Volume | Sound effects and music | 60 % |
 | Music | Disco music on or off (effects stay on) | On |
 | Use camera | Off = mouse / touch only | On |
+| Camera | *Auto* picks an external webcam over the laptop's built-in camera, or choose a specific camera | Auto |
 | Tracking | *Body*, best at 2 m; *Hands*, for close-up play | Body |
 | Camera zoom | How much of the room the play area covers | 1.5× |
 | Show camera behind game | Players can see themselves behind the belt | On |
@@ -119,6 +120,7 @@ Settings and high scores are saved in the browser (`localStorage`) on that compu
 |---|---|
 | "Camera blocked – tap for help" | Click the camera or 🔒 icon at the left of the address bar, set **Camera → Allow**, then reload. |
 | "No camera found" | Plug in or enable a webcam, or play with mouse / touch. |
+| It uses the laptop camera instead of the webcam | With **Camera: Auto**, the game prefers an external webcam and switches to one plugged in later (between games, never mid-round). To force one, pick it in ⚙️ Settings → **Camera**. |
 | The camera doesn't work when opening `index.html` as a file | Use the live link, or a local server (see [Development](#development)). Cameras need `https://` or `localhost`. |
 | Hands aren't detected | Step back to about 2 m, raise your hands, add light from the front, and check the calibration screen. |
 | Hands jump around or appear where nobody is | Avoid busy backgrounds and people walking behind the players. Press **D** to see what the tracker rejects and why. |

@@ -144,6 +144,7 @@ input[type=checkbox]{width:28px;height:28px}
       <label><span data-i18n="volume"></span><input type="range" id="volRange" min="0" max="1" step="0.05"></label>
       <label><span data-i18n="music"></span><input type="checkbox" id="musicChk"></label>
       <label><span data-i18n="useCam"></span><input type="checkbox" id="camChk"></label>
+      <label><span data-i18n="cameraSel"></span><select id="camSel" style="max-width:340px"></select></label>
       <label><span data-i18n="tracking"></span><select id="trkSel"></select></label>
       <label><span data-i18n="zoom"></span><input type="range" id="zoomRange" min="1" max="2.5" step="0.1"></label>
       <label><span data-i18n="backdrop"></span><input type="checkbox" id="bdChk"></label>
@@ -268,7 +269,7 @@ const CONFIG = {
   },
 
   durations: [30, 45, 60, 90],
-  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii', reverse: true }
+  defaults: { lang: 'en', dur: 60, diff: 'easy', vol: .6, mute: false, cam: true, zoom: 1.5, backdrop: true, track: 'pose', mega: true, music: true, anim: 'kawaii', reverse: true, camId: 'auto' }
 };
 
 const BOX_TYPES = ['maki', 'sashimi', 'avo'];
@@ -313,6 +314,7 @@ const STRINGS = {
     winner: 'Player {n} wins!', tie: "It's a tie!", sorted: 'sorted', best: 'best combo', acc: 'accuracy',
     maki: 'Maki', sashimi: 'Sashimi', avo: 'Avocado', p: 'P',
     reverse: 'REVERSE!', reverseSetting: 'Belt reversals',
+    cameraSel: 'Camera', camAuto: 'Auto (prefer webcam)', camN: 'Camera {n}', camUsing: '🎥 Using camera: {name}',
     tapMusic: 'Tap for disco music!', music: 'Music', anim: 'Animation style', anim_kawaii: 'Kawaii', anim_anime: 'Anime (beta)',
     camAsk: '📷 Allow the camera so the sushi can see you!', camWaking: '📷 Waking up the camera…', camReady: '📷 Camera ready!', camBlocked: '📷 Camera blocked – tap for help',
     camHelp: 'To allow the camera: click the camera or 🔒 icon at the left of the address bar, choose Allow, then reload the page.',
@@ -341,6 +343,7 @@ const STRINGS = {
     winner: 'Spelare {n} vinner!', tie: 'Det blev oavgjort!', sorted: 'sorterade', best: 'bästa kombo', acc: 'träffsäkerhet',
     maki: 'Maki', sashimi: 'Sashimi', avo: 'Avokado', p: 'S',
     reverse: 'OMVÄNT!', reverseSetting: 'Bandet byter håll',
+    cameraSel: 'Kamera', camAuto: 'Auto (föredra webbkamera)', camN: 'Kamera {n}', camUsing: '🎥 Använder kamera: {name}',
     tapMusic: 'Tryck för discomusik!', music: 'Musik', anim: 'Animationsstil', anim_kawaii: 'Kawaii', anim_anime: 'Anime (beta)',
     camAsk: '📷 Tillåt kameran så att sushin kan se dig!', camWaking: '📷 Väcker kameran…', camReady: '📷 Kameran är redo!', camBlocked: '📷 Kameran är blockerad – tryck för hjälp',
     camHelp: 'Så tillåter du kameran: klicka på kamera- eller 🔒-ikonen till vänster om adressfältet, välj Tillåt och ladda om sidan.',
@@ -939,12 +942,43 @@ function hiddenVideo() {
   return v;
 }
 
-async function openWebcam() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+/* ---------- choosing a camera (pure, unit tested) ---------- */
+// Prefer a real external webcam over the laptop's built-in camera; avoid virtual cameras (OBS etc.).
+const WEBCAM_BRAND = /\b(logitech|logi|brio|streamcam|c9\d\d|c270|c310|razer|kiyo|elgato|facecam|lifecam|anker|powerconf|insta360|obsbot|avermedia|emeet|nexigo|aukey|ugreen|jabra|panacast|poly|creative|usb)\b/i;
+const BUILTIN_CAM = /\b(built[- ]?in|integrated|internal|facetime|isight|macbook|imac|truevision|easycamera|front camera|user facing)\b/i;
+const VIRTUAL_CAM = /\b(virtual|obs|snap camera|mmhmm|xsplit|manycam|nvidia broadcast|camo|droidcam|epoccam|ndi)\b/i;
+const PHONE_CAM = /\b(iphone|continuity|android|phone)\b/i;
+const CAM_RANK = { webcam: 0, external: 1, phone: 2, builtin: 3, virtual: 4 };
+
+function cameraKind(label = '') {
+  if (VIRTUAL_CAM.test(label)) return 'virtual';
+  if (BUILTIN_CAM.test(label)) return 'builtin';
+  if (PHONE_CAM.test(label)) return 'phone';
+  if (WEBCAM_BRAND.test(label)) return 'webcam';
+  return 'external';   // unknown name: probably a plugged-in camera
+}
+// devices: [{ deviceId, label, kind: 'videoinput' }]; preferredId: a deviceId chosen in Settings, or 'auto'
+function pickCamera(devices, preferredId = 'auto') {
+  const cams = (devices || []).filter(d => d.kind === 'videoinput');
+  if (!cams.length) return null;
+  if (preferredId && preferredId !== 'auto') { const chosen = cams.find(d => d.deviceId === preferredId); if (chosen) return chosen; }
+  return cams.map((d, i) => ({ d, i, r: CAM_RANK[cameraKind(d.label)] })).sort((a, b) => a.r - b.r || a.i - b.i)[0].d;
+}
+async function listCameras() {
+  try { return (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label, kind: 'videoinput' })); }
+  catch { return []; }
+}
+
+// Opens a camera (a specific one if deviceId is given) and reports which one it really is.
+async function openWebcam(deviceId = null) {
+  const constraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
+  if (deviceId) constraints.deviceId = { exact: deviceId }; else constraints.facingMode = 'user';
+  const stream = await navigator.mediaDevices.getUserMedia({ video: constraints, audio: false });
+  const track = stream.getVideoTracks()[0], st = track && track.getSettings ? track.getSettings() : {};
   const video = hiddenVideo();
   video.srcObject = stream;
   await video.play();
-  return { kind: 'webcam', video, stream };
+  return { kind: 'webcam', video, stream, deviceId: st.deviceId || deviceId || '', label: (track && track.label) || '' };
 }
 
 async function openClip(file) {
@@ -2025,6 +2059,18 @@ function createUI(app) {
   byId('animSel').value = S.anim || 'kawaii'; byId('animSel').onchange = e => app.setSetting('anim', e.target.value);
   byId('revChk').checked = S.reverse !== false; byId('revChk').onchange = e => app.setSetting('reverse', e.target.checked);
   byId('megaChk').checked = S.mega; byId('megaChk').onchange = e => app.setSetting('mega', e.target.checked);
+  // camera list: "Auto (prefer webcam)" plus every camera found
+  ui.cameras = [];
+  ui.setCameras = (list, current) => {
+    ui.cameras = list || [];
+    const sel = byId('camSel'), t = app.t;
+    sel.innerHTML = '';
+    const add = (value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); };
+    add('auto', t('camAuto'));
+    ui.cameras.forEach((d, i) => add(d.deviceId, d.label || t('camN').replace('{n}', i + 1)));
+    sel.value = ui.cameras.some(d => d.deviceId === current) ? current : 'auto';
+  };
+  byId('camSel').onchange = e => app.setSetting('camId', e.target.value);
   byId('camChk').checked = S.cam; byId('trkSel').value = S.track; byId('zoomRange').value = S.zoom; byId('zoomRange2').value = S.zoom; byId('bdChk').checked = S.backdrop;
   byId('durSel').onchange = e => app.setSetting('dur', +e.target.value);
   byId('diffSel').onchange = e => app.setSetting('diff', e.target.value);
@@ -2089,6 +2135,7 @@ function createUI(app) {
     [...byId('diffSel').options].forEach(o => { o.textContent = t(o.value); });
     [...byId('trkSel').options].forEach(o => { o.textContent = t('trk_' + o.value); });
     [...byId('animSel').options].forEach(o => { o.textContent = t('anim_' + o.value); });
+    ui.setCameras(ui.cameras, app.settings.camId || 'auto');
     byId('kDel').textContent = t('del'); byId('kOk').textContent = t('ok');
     byId('goTitle').textContent = t('gameover');
     if (ui.results) renderScores();
@@ -2169,7 +2216,7 @@ let t = translator(S.lang);
 const stage = document.getElementById('stage');
 const R = createRenderer(document.getElementById('c'));
 const inp = createInput();
-const cam = { source: null, tracker: null, failed: false, loopToken: 0, busy: false, frames: 0, last: null };
+const cam = { source: null, tracker: null, failed: false, loopToken: 0, busy: false, frames: 0, last: null, devices: [] };
 const run = { screen: 'menu', game: null, intro: null, introEnd: null, flow: 0, pendingMode: 1, calibratedMode: 0, calibT: 0, acc: 0, fpsAcc: 0, fpsN: 0, statsT: 0, renderFps: 0, detectFps: 0 };
 let SCALE = 1;
 
@@ -2189,7 +2236,9 @@ const app = {
     if (key === 'music') { audio.setMusicOn(!!value); musicHint(); }
     if (key === 'vol') { S.mute = false; audio.setVolume(S.vol); audio.setMute(false); ui.setMuteIcon(false); }
     if (key === 'cam' && !value && cam.source && cam.source.kind === 'webcam') { closeSource(cam.source); cam.source = null; clearCamera(inp); }
+    if (key === 'camId' && cam.source && cam.source.kind === 'webcam') maybeSwitchCamera(true);
     if (key === 'cam') checkCamera();
+
   }
 };
 const ui = createUI(app);
@@ -2246,7 +2295,7 @@ function ensureTracking(quiet = false) {
 }
 async function startTracking(quiet) {
   try {
-    if (!cam.source) { if (!quiet) ui.loading(t('loadCam')); setSource(await openWebcam()); }
+    if (!cam.source) { if (!quiet) ui.loading(t('loadCam')); setSource(await openPreferredWebcam()); announceCamera(); }
     if (!cam.tracker || cam.tracker.kind !== S.track) {
       if (!quiet) ui.loading(t('loadModel'));
       const tr = await loadTracker(S.track);
@@ -2313,12 +2362,14 @@ function startCountdown() {
   run.acc = 0; run.screen = 'game'; ui.show(null);
 }
 function endGame() {
+  if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round
   const g = run.game;
   audio.music('menu'); audio.play('over');
   run.screen = 'over'; ui.setQuit(false);
   ui.gameOver(g.lanes.map((l, i) => ({ player: i, ...gameStats(l) })), g.mode);
 }
 function goMenu() {
+  if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round
   run.flow++; if (run.introEnd) { run.introEnd(); run.introEnd = null; }
   audio.music('menu'); run.game = null; run.screen = 'menu';
   ui.clearResults(); ui.setQuit(false); ui.show('menu');
@@ -2350,11 +2401,11 @@ async function useClip(file) {
   catch (e) { ui.toast(`Could not play clip: ${e.message}`); }
 }
 async function useWebcam() {
-  try { setSource(await openWebcam()); ui.toast('🎥 webcam'); } catch (e) { ui.toast(`Webcam: ${e.message}`); }
+  try { setSource(await openPreferredWebcam()); announceCamera(true); } catch (e) { ui.toast(`Webcam: ${e.message}`); }
 }
 async function recordTestClip() {
   try {
-    if (!cam.source || cam.source.kind !== 'webcam') setSource(await openWebcam());
+    if (!cam.source || cam.source.kind !== 'webcam') setSource(await openPreferredWebcam());
     recordClip(cam.source.stream, 20, left => debug.setRecording(left > 0 ? `⏺ Recording… ${left}s` : '⏺ Record clip (20 s)'), err => { debug.setRecording('⏺ Record clip (20 s)'); ui.toast(err ? err.message : 'Clip saved to your Downloads folder'); });
   } catch (e) { ui.toast(`Recording failed: ${e.message}`); }
 }
@@ -2411,7 +2462,7 @@ function frame(now) {
     if (debug.visible) {
       const v = cam.source && cam.source.video;
       debug.setStats([
-        `source   ${cam.source ? `${cam.source.kind}${cam.source.name ? ' ' + cam.source.name : ''} ${v.videoWidth}×${v.videoHeight}` : 'none'}`,
+        `source   ${cam.source ? `${cam.source.kind}${cam.source.name ? ' ' + cam.source.name : ''}${cam.source.label ? ' "' + cam.source.label + '"' : ''} ${v.videoWidth}×${v.videoHeight}` : 'none'}   (${cam.devices.length} camera${cam.devices.length === 1 ? '' : 's'})`,
         `tracker  ${cam.tracker ? cam.tracker.kind : 'none'}   detect ${run.detectFps.toFixed(0)} fps   render ${run.renderFps.toFixed(0)} fps${R.low ? ' (low fx)' : ''}`,
         `hands    ${hands.map(h => h.id + (h.lost ? '?' : '')).join(' ') || '–'}`,
         `rejects  ${inp.debug.rejects.map(r => r.why).join(', ') || '–'}`
@@ -2463,6 +2514,45 @@ async function checkCamera() {
   refreshCamUI();
 }
 checkCamera();
+
+/* ---------------- which camera: prefer an external webcam ---------------- */
+// Open the camera chosen in Settings, or (auto) the best one: an external webcam beats the laptop's built-in camera.
+async function openPreferredWebcam() {
+  const want = S.camId && S.camId !== 'auto' ? S.camId : null;
+  let src;
+  try { src = await openWebcam(want); }
+  catch (e) { if (!want || e.name === 'NotAllowedError') throw e; src = await openWebcam(); }   // chosen camera unplugged: use another
+  await refreshCameraList();                                    // names are only visible after permission
+  const best = pickCamera(cam.devices, S.camId || 'auto');
+  if (best && best.deviceId && best.deviceId !== src.deviceId) {
+    try { const better = await openWebcam(best.deviceId); closeSource(src); src = better; } catch { /* keep the one that works */ }
+  }
+  return src;
+}
+async function refreshCameraList() {
+  cam.devices = await listCameras();
+  ui.setCameras(cam.devices, S.camId || 'auto');
+}
+function announceCamera(always = false) {
+  if (cam.source && cam.source.kind === 'webcam' && cam.source.label && (always || cam.devices.length > 1)) ui.toast(t('camUsing').replace('{name}', cam.source.label), 3500);
+}
+const busyScreen = () => ['game', 'calib', 'intro', 'intro-wait'].includes(run.screen);
+// Switch to the best camera now, unless a round is running (then wait), or the current camera has gone.
+async function maybeSwitchCamera(force = false) {
+  if (!cam.source || cam.source.kind !== 'webcam' || cam.switching) return;
+  const best = pickCamera(cam.devices, S.camId || 'auto');
+  if (!best || !best.deviceId || best.deviceId === cam.source.deviceId) return;
+  const gone = !cam.devices.some(d => d.deviceId === cam.source.deviceId);
+  if (busyScreen() && !gone && !force) { cam.pendingSwitch = true; return; }
+  cam.switching = true; cam.pendingSwitch = false;
+  try { setSource(await openWebcam(best.deviceId)); announceCamera(true); }
+  catch (e) { console.warn('Camera switch failed', e); }
+  cam.switching = false;
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', async () => { await refreshCameraList(); maybeSwitchCamera(); });
+}
+refreshCameraList();
 
 window.__bdou = { run, S, inp, cam, R, startGame, ui, setSource, detectOnce, checkCamera, refreshCamUI };
 
