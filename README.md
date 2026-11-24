@@ -99,7 +99,7 @@ Open ⚙️ **Settings** from the top bar or the start page.
 | Camera | *Auto* picks an external webcam over the laptop's built-in camera, or choose a specific camera | Auto |
 | Tracking | *Body*, best at 2 m; *Hands*, for close-up play | Body |
 | Camera zoom | How much of the room the play area covers | 1.5× |
-| Show camera behind game | Players can see themselves behind the belt | On |
+| Show camera behind game | Players see themselves behind the belt (stays on even on slower computers) | On |
 
 Settings and high scores are saved in the browser (`localStorage`) on that computer only.
 
@@ -126,7 +126,8 @@ Settings and high scores are saved in the browser (`localStorage`) on that compu
 | Hands jump around or appear where nobody is | Avoid busy backgrounds and people walking behind the players. Press **D** to see what the tracker rejects and why. |
 | Hard to reach the edges | Lower **Camera zoom** in Settings. |
 | No music | Browsers only allow sound after a tap, click or key press. Tap **🎵 Tap for disco music!**, and check the **Music** setting and the 🔊 button. |
-| Slow on an older laptop | The game switches heavy effects off by itself. You can also turn off **Show camera behind game**. |
+| Slow on an older laptop | The game switches heavy effects off by itself (the camera picture stays on). |
+| Can't see yourself during play | Check ⚙️ Settings → **Show camera behind game** is on and the camera is allowed. In mouse / touch mode there is no camera picture. |
 
 ---
 
