@@ -7,7 +7,7 @@ import { audio } from './audio.js';
 import { createGame, stepGame, gameStats } from './game.js';
 import { createInput, inputFromPose, inputFromHands, pointerMove, pointerEnd, clearCamera, handPoints } from './input.js';
 import { loadTracker, closeTracker, detectFrame } from './tracker.js';
-import { openWebcam, openClip, closeSource, recordClip, downloadBlob } from './camera.js';
+import { openWebcam, openClip, closeSource, recordClip, downloadBlob, listCameras, pickCamera } from './camera.js';
 import { createRenderer, renderEvents, renderTick, renderFrame } from './render.js';
 import { createIntro, tickIntro, skipIntro } from './intro.js';
 import { createDebug, drawDebugOverlay } from './debug.js';
@@ -19,7 +19,7 @@ let t = translator(S.lang);
 const stage = document.getElementById('stage');
 const R = createRenderer(document.getElementById('c'));
 const inp = createInput();
-const cam = { source: null, tracker: null, failed: false, loopToken: 0, busy: false, frames: 0, last: null };
+const cam = { source: null, tracker: null, failed: false, loopToken: 0, busy: false, frames: 0, last: null, devices: [] };
 const run = { screen: 'menu', game: null, intro: null, introEnd: null, flow: 0, pendingMode: 1, calibratedMode: 0, calibT: 0, acc: 0, fpsAcc: 0, fpsN: 0, statsT: 0, renderFps: 0, detectFps: 0 };
 let SCALE = 1;
 
@@ -39,7 +39,9 @@ const app = {
     if (key === 'music') { audio.setMusicOn(!!value); musicHint(); }
     if (key === 'vol') { S.mute = false; audio.setVolume(S.vol); audio.setMute(false); ui.setMuteIcon(false); }
     if (key === 'cam' && !value && cam.source && cam.source.kind === 'webcam') { closeSource(cam.source); cam.source = null; clearCamera(inp); }
+    if (key === 'camId' && cam.source && cam.source.kind === 'webcam') maybeSwitchCamera(true);
     if (key === 'cam') checkCamera();
+
   }
 };
 const ui = createUI(app);
@@ -96,7 +98,7 @@ function ensureTracking(quiet = false) {
 }
 async function startTracking(quiet) {
   try {
-    if (!cam.source) { if (!quiet) ui.loading(t('loadCam')); setSource(await openWebcam()); }
+    if (!cam.source) { if (!quiet) ui.loading(t('loadCam')); setSource(await openPreferredWebcam()); announceCamera(); }
     if (!cam.tracker || cam.tracker.kind !== S.track) {
       if (!quiet) ui.loading(t('loadModel'));
       const tr = await loadTracker(S.track);
@@ -163,12 +165,14 @@ function startCountdown() {
   run.acc = 0; run.screen = 'game'; ui.show(null);
 }
 function endGame() {
+  if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round
   const g = run.game;
   audio.music('menu'); audio.play('over');
   run.screen = 'over'; ui.setQuit(false);
   ui.gameOver(g.lanes.map((l, i) => ({ player: i, ...gameStats(l) })), g.mode);
 }
 function goMenu() {
+  if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round
   run.flow++; if (run.introEnd) { run.introEnd(); run.introEnd = null; }
   audio.music('menu'); run.game = null; run.screen = 'menu';
   ui.clearResults(); ui.setQuit(false); ui.show('menu');
@@ -200,11 +204,11 @@ async function useClip(file) {
   catch (e) { ui.toast(`Could not play clip: ${e.message}`); }
 }
 async function useWebcam() {
-  try { setSource(await openWebcam()); ui.toast('🎥 webcam'); } catch (e) { ui.toast(`Webcam: ${e.message}`); }
+  try { setSource(await openPreferredWebcam()); announceCamera(true); } catch (e) { ui.toast(`Webcam: ${e.message}`); }
 }
 async function recordTestClip() {
   try {
-    if (!cam.source || cam.source.kind !== 'webcam') setSource(await openWebcam());
+    if (!cam.source || cam.source.kind !== 'webcam') setSource(await openPreferredWebcam());
     recordClip(cam.source.stream, 20, left => debug.setRecording(left > 0 ? `⏺ Recording… ${left}s` : '⏺ Record clip (20 s)'), err => { debug.setRecording('⏺ Record clip (20 s)'); ui.toast(err ? err.message : 'Clip saved to your Downloads folder'); });
   } catch (e) { ui.toast(`Recording failed: ${e.message}`); }
 }
@@ -261,7 +265,7 @@ function frame(now) {
     if (debug.visible) {
       const v = cam.source && cam.source.video;
       debug.setStats([
-        `source   ${cam.source ? `${cam.source.kind}${cam.source.name ? ' ' + cam.source.name : ''} ${v.videoWidth}×${v.videoHeight}` : 'none'}`,
+        `source   ${cam.source ? `${cam.source.kind}${cam.source.name ? ' ' + cam.source.name : ''}${cam.source.label ? ' "' + cam.source.label + '"' : ''} ${v.videoWidth}×${v.videoHeight}` : 'none'}   (${cam.devices.length} camera${cam.devices.length === 1 ? '' : 's'})`,
         `tracker  ${cam.tracker ? cam.tracker.kind : 'none'}   detect ${run.detectFps.toFixed(0)} fps   render ${run.renderFps.toFixed(0)} fps${R.low ? ' (low fx)' : ''}`,
         `hands    ${hands.map(h => h.id + (h.lost ? '?' : '')).join(' ') || '–'}`,
         `rejects  ${inp.debug.rejects.map(r => r.why).join(', ') || '–'}`
@@ -313,5 +317,44 @@ async function checkCamera() {
   refreshCamUI();
 }
 checkCamera();
+
+/* ---------------- which camera: prefer an external webcam ---------------- */
+// Open the camera chosen in Settings, or (auto) the best one: an external webcam beats the laptop's built-in camera.
+async function openPreferredWebcam() {
+  const want = S.camId && S.camId !== 'auto' ? S.camId : null;
+  let src;
+  try { src = await openWebcam(want); }
+  catch (e) { if (!want || e.name === 'NotAllowedError') throw e; src = await openWebcam(); }   // chosen camera unplugged: use another
+  await refreshCameraList();                                    // names are only visible after permission
+  const best = pickCamera(cam.devices, S.camId || 'auto');
+  if (best && best.deviceId && best.deviceId !== src.deviceId) {
+    try { const better = await openWebcam(best.deviceId); closeSource(src); src = better; } catch { /* keep the one that works */ }
+  }
+  return src;
+}
+async function refreshCameraList() {
+  cam.devices = await listCameras();
+  ui.setCameras(cam.devices, S.camId || 'auto');
+}
+function announceCamera(always = false) {
+  if (cam.source && cam.source.kind === 'webcam' && cam.source.label && (always || cam.devices.length > 1)) ui.toast(t('camUsing').replace('{name}', cam.source.label), 3500);
+}
+const busyScreen = () => ['game', 'calib', 'intro', 'intro-wait'].includes(run.screen);
+// Switch to the best camera now, unless a round is running (then wait), or the current camera has gone.
+async function maybeSwitchCamera(force = false) {
+  if (!cam.source || cam.source.kind !== 'webcam' || cam.switching) return;
+  const best = pickCamera(cam.devices, S.camId || 'auto');
+  if (!best || !best.deviceId || best.deviceId === cam.source.deviceId) return;
+  const gone = !cam.devices.some(d => d.deviceId === cam.source.deviceId);
+  if (busyScreen() && !gone && !force) { cam.pendingSwitch = true; return; }
+  cam.switching = true; cam.pendingSwitch = false;
+  try { setSource(await openWebcam(best.deviceId)); announceCamera(true); }
+  catch (e) { console.warn('Camera switch failed', e); }
+  cam.switching = false;
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', async () => { await refreshCameraList(); maybeSwitchCamera(); });
+}
+refreshCameraList();
 
 window.__bdou = { run, S, inp, cam, R, startGame, ui, setSource, detectOnce, checkCamera, refreshCamUI };
