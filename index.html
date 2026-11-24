@@ -1580,25 +1580,29 @@ function drawBackground(r, view, forceVideo) {
   const g = c.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, `hsl(${(h + 270) % 360},75%,32%)`); g.addColorStop(.5, `hsl(${(h + 310) % 360},80%,42%)`); g.addColorStop(1, `hsl(${(h + 200) % 360},75%,30%)`);
   const v = view.video;
-  const showVideo = v && v.readyState >= 2 && v.videoWidth && (forceVideo || (view.backdrop && !r.low));
+  // players see themselves behind the game; this stays on even in low-effects mode (one drawImage is cheap)
+  const showVideo = v && v.readyState >= 2 && v.videoWidth && (forceVideo || view.backdrop);
+  r.videoShown = !!showVideo;
   if (showVideo) {
     const vw = v.videoWidth, vh = v.videoHeight, s = Math.max(W / vw, H / vh) * view.zoom;
     c.save(); c.translate(W, 0); c.scale(-1, 1);
     c.drawImage(v, (W - vw * s) / 2, (H - vh * s) / 2, vw * s, vh * s); c.restore();
-    c.globalAlpha = forceVideo ? .25 : .45; c.fillStyle = g; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
+    c.globalAlpha = .2; c.fillStyle = g; c.fillRect(0, 0, W, H); c.globalAlpha = 1;   // light disco tint, players stay clearly visible
   } else { c.fillStyle = g; c.fillRect(0, 0, W, H); }
   if (forceVideo) return;
   if (!r.low) {
+    if (!showVideo) {                      // flashing floor tiles only when there is no camera picture to keep clear
     c.globalAlpha = .14;
     for (let y = 0; y < 5; y++) for (let x = 0; x < 17; x++) {
       if ((x + y + Math.floor(r.clock * 2)) % 2) { c.fillStyle = `hsl(${(x * 22 + y * 50 + r.clock * 120) % 360},100%,65%)`; c.fillRect(x * 80 - 40, 380 + y * 70, 78, 68); }
     }
     c.globalAlpha = 1;
+    }
     c.save(); c.globalCompositeOperation = 'lighter';
     [[300, 48, 1], [980, 48, -1]].forEach(([bx, by, dir]) => {
       for (let i = 0; i < 6; i++) {
         const a = r.clock * .5 * dir + i * Math.PI / 3, Lb = 900;
-        c.fillStyle = `hsla(${(i * 60 + r.clock * 60) % 360},100%,60%,.09)`;
+        c.fillStyle = `hsla(${(i * 60 + r.clock * 60) % 360},100%,60%,${showVideo ? .05 : .09})`;
         c.beginPath(); c.moveTo(bx, by);
         c.lineTo(bx + Math.cos(a - .09) * Lb, by + Math.abs(Math.sin(a - .09)) * Lb * .9 + 40);
         c.lineTo(bx + Math.cos(a + .09) * Lb, by + Math.abs(Math.sin(a + .09)) * Lb * .9 + 40); c.fill();
@@ -1784,7 +1788,7 @@ function renderFrame(r, view) {
     g.lanes.forEach((l, li) => {
       const fx = two ? l.x0 - 8 : 0, fw = two ? l.w + 16 : W;
       c.save();
-      if (two) { rrect(c, fx, 4, fw, H - 8, 26); c.clip(); c.fillStyle = 'rgba(20,8,50,.35)'; c.fillRect(fx, 0, fw, H); }
+      if (two) { rrect(c, fx, 4, fw, H - 8, 26); c.clip(); c.fillStyle = r.videoShown ? 'rgba(20,8,50,.1)' : 'rgba(20,8,50,.35)'; c.fillRect(fx, 0, fw, H); }
       drawBelt(r, g.beltDist, g.revWarned);
       const hover = [0, 0, 0];
       for (const it of g.items) if (it.lane === li && it.st === 'held' && it.dropCol >= 0) hover[it.dropCol] = Math.max(hover[it.dropCol], .05 + it.dropT / (CONFIG.interaction.dropDwellMs / 1000));
@@ -2360,6 +2364,7 @@ function startCountdown() {
   run.calibratedMode = trackingReady() ? mode : run.calibratedMode;
   run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, reverse: S.reverse !== false, seed: (Date.now() & 0x7fffffff) });
   run.acc = 0; run.screen = 'game'; ui.show(null);
+  R.low = false;                                   // re-check performance each game
 }
 function endGame() {
   if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round

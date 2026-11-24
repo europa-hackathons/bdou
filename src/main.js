@@ -163,6 +163,7 @@ function startCountdown() {
   run.calibratedMode = trackingReady() ? mode : run.calibratedMode;
   run.game = createGame({ mode, difficulty: S.diff, duration: S.dur, mega: S.mega, reverse: S.reverse !== false, seed: (Date.now() & 0x7fffffff) });
   run.acc = 0; run.screen = 'game'; ui.show(null);
+  R.low = false;                                   // re-check performance each game
 }
 function endGame() {
   if (cam.pendingSwitch) setTimeout(() => maybeSwitchCamera(), 0);   // a better camera was plugged in during the round
